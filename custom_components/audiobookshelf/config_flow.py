@@ -1,14 +1,16 @@
 """Adds config flow for Audiobookshelf."""
+import logging
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import AudiobookshelfApiClient
-from .const import CONF_PASSWORD
-from .const import CONF_USERNAME
+from .const import CONF_HOST
+from .const import CONF_ACCESS_TOKEN
 from .const import DOMAIN
-from .const import PLATFORMS
+
+_LOGGER: logging.Logger = logging.getLogger(__package__)
 
 
 class AudiobookshelfFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -31,11 +33,11 @@ class AudiobookshelfFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             valid = await self._test_credentials(
-                user_input[CONF_USERNAME], user_input[CONF_PASSWORD]
+                user_input[CONF_HOST], user_input[CONF_ACCESS_TOKEN]
             )
             if valid:
                 return self.async_create_entry(
-                    title=user_input[CONF_USERNAME], data=user_input
+                    title=user_input[CONF_HOST], data=user_input
                 )
             else:
                 self._errors["base"] = "auth"
@@ -54,21 +56,24 @@ class AudiobookshelfFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
-                {vol.Required(CONF_USERNAME): str, vol.Required(CONF_PASSWORD): str}
+                {vol.Required(CONF_HOST): str, vol.Required(CONF_ACCESS_TOKEN): str}
             ),
             errors=self._errors,
         )
 
-    async def _test_credentials(self, username, password):
+    async def _test_credentials(self, host, access_token):
         """Return true if credentials is valid."""
         try:
             session = async_create_clientsession(self.hass)
-            client = AudiobookshelfApiClient(username, password, session)
-            await client.async_get_data()
+            api = AudiobookshelfApiClient(host, access_token, session)
+            response = await api.api_wrapper(
+                method="get", url=api.get_host() + "/api/users"
+            )
+            _LOGGER.info("""test_credentials response was: %s""", response)
             return True
-        except Exception:  # pylint: disable=broad-except
-            pass
-        return False
+        except Exception as exception:  # pylint: disable=broad-except
+            _LOGGER.info("""test_credentials failed due to: %s""", exception)
+            return False
 
 
 class AudiobookshelfOptionsFlowHandler(config_entries.OptionsFlow):
@@ -94,7 +99,7 @@ class AudiobookshelfOptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(x, default=self.options.get(x, True)): bool
-                    for x in sorted(PLATFORMS)
+                    for x in sorted(["binary_sensor", "sensor"])
                 }
             ),
         )
@@ -102,5 +107,5 @@ class AudiobookshelfOptionsFlowHandler(config_entries.OptionsFlow):
     async def _update_options(self):
         """Update config entry options."""
         return self.async_create_entry(
-            title=self.config_entry.data.get(CONF_USERNAME), data=self.options
+            title=self.config_entry.data.get(CONF_HOST), data=self.options
         )

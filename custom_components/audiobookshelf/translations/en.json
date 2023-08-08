@@ -5,13 +5,13 @@
         "title": "Audiobookshelf",
         "description": "If you need help with the configuration have a look here: https://github.com/wolffshots/audiobookshelf",
         "data": {
-          "username": "Username",
-          "password": "Password"
+          "host": "Host",
+          "access_token": "Access Token"
         }
       }
     },
     "error": {
-      "auth": "Username/Password is wrong."
+      "auth": "Auth failed."
     },
     "abort": {
       "single_instance_allowed": "Only a single instance is allowed."
@@ -22,8 +22,7 @@
       "user": {
         "data": {
           "binary_sensor": "Binary sensor enabled",
-          "sensor": "Sensor enabled",
-          "switch": "Switch enabled"
+          "sensor": "Sensor enabled"
         }
       }
     }

@@ -1,9 +1,9 @@
 """Sensor platform for Audiobookshelf."""
-from .const import DEFAULT_NAME
+import logging
 from .const import DOMAIN
-from .const import ICON
-from .const import SENSOR
 from .entity import AudiobookshelfEntity
+
+_LOGGER: logging.Logger = logging.getLogger(__package__)
 
 
 async def async_setup_entry(hass, entry, async_add_devices):
@@ -18,17 +18,27 @@ class AudiobookshelfSensor(AudiobookshelfEntity):
     @property
     def name(self):
         """Return the name of the sensor."""
-        return f"{DEFAULT_NAME}_{SENSOR}"
+        return f"{DOMAIN}_sensor"
 
     @property
     def state(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get("body")
+        try:
+            coordinator_get = self.coordinator.data.get(
+                "users", ""
+            )  # need to work out how to add functionality to the coordinator to fetch /api/users
+            _LOGGER.info("""sensor coordinator got: %s""", coordinator_get)
+            if isinstance(coordinator_get, int):
+                return coordinator_get
+            return None
+        except Exception as exception:  # pylint: disable=broad-exception-caught
+            _LOGGER.info("""sensor caught error on is_on: %s""", exception)
+            return None
 
     @property
     def icon(self):
         """Return the icon of the sensor."""
-        return ICON
+        return "mdi:format-quote-close"
 
     @property
     def device_class(self):

@@ -15,30 +15,48 @@ HEADERS = {"Content-type": "application/json; charset=UTF-8"}
 
 
 class AudiobookshelfApiClient:
+    """API Client for communicating with Audiobookshelf server"""
+
     def __init__(
-        self, username: str, password: str, session: aiohttp.ClientSession
+        self, host: str, access_token: str, session: aiohttp.ClientSession
     ) -> None:
         """Sample API Client."""
-        self._username = username
-        self._passeword = password
+        self._host = host
+        self._access_token = access_token
         self._session = session
 
-    async def async_get_data(self) -> dict:
-        """Get data from the API."""
-        url = "https://jsonplaceholder.typicode.com/posts/1"
-        return await self.api_wrapper("get", url)
+    def get_host(self) -> str:
+        """Getter for host var"""
+        return self._host
 
-    async def async_set_title(self, value: str) -> None:
-        """Get data from the API."""
-        url = "https://jsonplaceholder.typicode.com/posts/1"
-        await self.api_wrapper("patch", url, data={"title": value}, headers=HEADERS)
+    def count_active_users(self, data):
+        """
+        Takes in an object with an array of users
+        and counts the active ones minus
+        the dummy hass one
+        """
+        count = 0
+        for user in data["users"]:
+            if user["isActive"] and user["username"] != "hass":
+                if (
+                    self._access_token is not None
+                    and "token" in user
+                    and user["token"] == self._access_token
+                ):
+                    continue  # Skip user with provided access_token
+                count += 1
+        return count
 
     async def api_wrapper(
-        self, method: str, url: str, data: dict = {}, headers: dict = {}
+        self, method: str, url: str, data: dict = None, headers: dict = None
     ) -> dict:
         """Get information from the API."""
+        if headers is not None:
+            headers["Authorization"] = f"Bearer {self._access_token}"
+        else:
+            headers = {"Authorization": f"Bearer {self._access_token}"}
         try:
-            async with async_timeout.timeout(TIMEOUT, loop=asyncio.get_event_loop()):
+            async with async_timeout.timeout(TIMEOUT):  # loop=asyncio.get_event_loop()
                 if method == "get":
                     response = await self._session.get(url, headers=headers)
                     return await response.json()

@@ -1,10 +1,14 @@
 {
-  "domain": "audiobookshelf",
-  "name": "Audiobookshelf",
-  "documentation": "https://github.com/wolffshots/audiobookshelf",
-  "issue_tracker": "https://github.com/wolffshots/audiobookshelf/issues",
-  "dependencies": [],
-  "config_flow": true,
-  "codeowners": ["@wolffshots"],
-  "requirements": []
+	"domain": "audiobookshelf",
+	"name": "Audiobookshelf",
+	"after_dependencies": [
+		"integration"
+	],
+	"documentation": "https://github.com/wolffshots/hass-audiobookshelf",
+	"issue_tracker": "https://github.com/wolffshots/hass-audiobookshelf/issues",
+	"dependencies": [],
+	"config_flow": true,
+	"codeowners": ["@wolffshots"],
+	"requirements": [],
+	"version": "v0.0.1"
 }
