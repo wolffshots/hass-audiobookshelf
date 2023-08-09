@@ -6,7 +6,7 @@ from collections.abc import Coroutine
 from typing import Any, Literal
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Config, HomeAssistant
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -97,16 +97,6 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Unhandled error occurred: %s", exception)
             raise  # Re-raise the exception to allow it to be properly handled elsewhere
         return update
-
-
-async def async_setup(
-    hass: HomeAssistant,  # pylint: disable=unused-argument
-    config: Config,  # pylint: disable=unused-argument
-) -> Coroutine[Any, Any, Literal[True]]:
-    """Set up this integration using YAML"""
-
-    # Return boolean to indicate that initialization was successful.
-    return True
 
 
 async def async_setup_entry(
