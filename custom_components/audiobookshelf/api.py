@@ -104,4 +104,4 @@ class AudiobookshelfApiClient:
             )
         except Exception as exception:
             _LOGGER.error("Something really wrong happened! - %s", exception)
-            raise
+            raise exception

@@ -4,6 +4,7 @@ from collections.abc import Coroutine
 from typing import Any
 
 import aiohttp
+import pytest
 from _pytest.logging import LogCaptureFixture
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -28,29 +29,23 @@ async def test_api(
         session=async_get_clientsession(hass),
     )
 
-    # Use aioclient_mock which is provided by `pytest_homeassistant_custom_components`
-    # to mock responses to aiohttp requests. In this case we are telling the mock to
-    # return {"test": "test"} when a `GET` call is made to the specified URL. We then
-    # call `async_get_data` which will make that `GET` request.
-    # aioclient_mock.get("host", json={"test": "test"})
-    # assert await api.async_get_data() == {"test": "test"}
-
-    # We do the same for `async_set_title`. Note the difference in the mock call
-    # between the previous step and this one. We use `patch` here instead of `get`
-    # because we know that `async_set_title` calls `api_wrapper` with `patch` as the
-    # first parameter
-    # aioclient_mock.patch("host")
-    # assert await api.async_set_title("test") is None
-
-    # In order to get 100% coverage, we need to test `api_wrapper` to test the code
-    # that isn't already called by `async_get_data` and `async_set_title`. Because the
-    # only logic that lives inside `api_wrapper` that is not being handled by a third
-    # party library (aiohttp) is the exception handling, we also want to simulate
-    # raising the exceptions to ensure that the function handles them as expected.
-    # The caplog fixture allows access to log messages in tests. This is particularly
-    # useful during exception handling testing since often the only action as part of
-    # exception handling is a logging statement
     caplog.clear()
+    aioclient_mock.clear_requests()
+    aioclient_mock.get("some_host", exc=asyncio.TimeoutError)
+    assert await api.api_wrapper("get", "some_host") is None
+    assert (
+        len(caplog.record_tuples) == 1
+        and "Timeout error fetching information from" in caplog.record_tuples[0][2]
+    )
+
+    caplog.clear()
+    aioclient_mock.clear_requests()
+    aioclient_mock.get("some_host", json={"test": "test"})
+    assert (await api.api_wrapper("get", "some_host")) == {"test": "test"}
+    assert len(caplog.record_tuples) == 0
+
+    caplog.clear()
+    aioclient_mock.clear_requests()
     aioclient_mock.put("some_host", exc=asyncio.TimeoutError)
     assert await api.api_wrapper("put", "some_host") is None
     assert (
@@ -59,6 +54,16 @@ async def test_api(
     )
 
     caplog.clear()
+    aioclient_mock.clear_requests()
+    aioclient_mock.patch("some_host", exc=asyncio.TimeoutError)
+    assert await api.api_wrapper("patch", "some_host") is None
+    assert (
+        len(caplog.record_tuples) == 1
+        and "Timeout error fetching information from" in caplog.record_tuples[0][2]
+    )
+
+    caplog.clear()
+    aioclient_mock.clear_requests()
     aioclient_mock.post("some_host", exc=aiohttp.ClientError)
     assert await api.api_wrapper("post", "some_host") is None
     assert (
@@ -67,17 +72,139 @@ async def test_api(
     )
 
     caplog.clear()
+    aioclient_mock.clear_requests()
     aioclient_mock.post("some_host/2", exc=Exception)
-    assert await api.api_wrapper("post", "some_host/2") is None
+    with pytest.raises(Exception) as e_info:
+        assert await api.api_wrapper("post", "some_host/2")
+        assert e_info.errisinstance(Exception)
     assert (
         len(caplog.record_tuples) == 1
         and "Something really wrong happened!" in caplog.record_tuples[0][2]
     )
 
     caplog.clear()
+    aioclient_mock.clear_requests()
     aioclient_mock.post("some_host/3", exc=TypeError)
-    assert await api.api_wrapper("post", "some_host/3") is None
+    with pytest.raises(Exception) as e_info:
+        assert await api.api_wrapper("post", "some_host/3") is None
+        assert e_info.errisinstance(Exception)
     assert (
         len(caplog.record_tuples) == 1
         and "Error parsing information from" in caplog.record_tuples[0][2]
     )
+
+    caplog.clear()
+    aioclient_mock.clear_requests()
+    aioclient_mock.put("some_host", exc=asyncio.TimeoutError)
+    assert (
+        await api.api_wrapper(
+            method="put", url="some_host", headers={"Test": "test header"},
+        )
+        is None
+    )
+    assert (
+        len(caplog.record_tuples) == 1
+        and "Timeout error fetching information from" in caplog.record_tuples[0][2]
+    )
+
+    caplog.clear()
+    data = {"openSessions": [], "users": []}
+    assert api.count_open_sessions(data) == 0
+    assert api.count_active_users(data) == 0
+    data = {
+        "openSessions": [
+            {
+                "bookId": "testing_session_1",
+                "chapters": "testing_session_1",
+                "coverPath": "testing_session_1",
+                "currentTime": "testing_session_1",
+                "date": "testing_session_1",
+                "dayOfWeek": "testing_session_1",
+                "deviceInfo": "testing_session_1",
+                "displayAuthor": "testing_session_1",
+                "displayTitle": "testing_session_1",
+                "duration": "testing_session_1",
+                "episodeId": "testing_session_1",
+                "id": "testing_session_1",
+                "libraryId": "testing_session_1",
+                "libraryItemId": "testing_session_1",
+                "mediaMetadata": "testing_session_1",
+                "mediaPlayer": "testing_session_1",
+                "mediaType": "testing_session_1",
+                "playMethod": "testing_session_1",
+                "serverVersion": "testing_session_1",
+                "startTime": "testing_session_1",
+                "startedAt": "testing_session_1",
+                "timeListening": "testing_session_1",
+                "updatedAt": "testing_session_1",
+                "userId": "testing_session_1",
+            },
+        ],
+        "users": [
+            {
+                "createdAt": "testing_user_1",
+                "id": "testing_user_1",
+                "isActive": True,
+                "isLocked": "testing_user_1",
+                "itemTagsSelected": "testing_user_1",
+                "lastSeen": "testing_user_1",
+                "librariesAccessible": "testing_user_1",
+                "oldUserId": "testing_user_1",
+                "permissions": "testing_user_1",
+                "seriesHideFromContinueListening": "testing_user_1",
+                "token": "testing_user_1",
+                "type": "testing_user_1",
+                "username": "testing_user_1",
+            },
+            {
+                "createdAt": "testing_user_2",
+                "id": "testing_user_2",
+                "isActive": False,
+                "isLocked": "testing_user_2",
+                "itemTagsSelected": "testing_user_2",
+                "lastSeen": "testing_user_2",
+                "librariesAccessible": "testing_user_2",
+                "oldUserId": "testing_user_2",
+                "permissions": "testing_user_2",
+                "seriesHideFromContinueListening": "testing_user_2",
+                "token": "testing_user_2",
+                "type": "testing_user_2",
+                "username": "testing_user_2",
+            },
+            {
+                "createdAt": "testing_user_3",
+                "id": "testing_user_3",
+                "isActive": True,
+                "isLocked": "testing_user_3",
+                "itemTagsSelected": "testing_user_3",
+                "lastSeen": "testing_user_3",
+                "librariesAccessible": "testing_user_3",
+                "oldUserId": "testing_user_3",
+                "permissions": "testing_user_3",
+                "seriesHideFromContinueListening": "testing_user_3",
+                "token": "some_access_token",
+                "type": "testing_user_3",
+                "username": "testing_user_3",
+            },
+            {
+                "createdAt": "testing_user_4",
+                "id": "testing_user_4",
+                "isActive": True,
+                "isLocked": "testing_user_4",
+                "itemTagsSelected": "testing_user_4",
+                "lastSeen": "testing_user_4",
+                "librariesAccessible": "testing_user_4",
+                "oldUserId": "testing_user_4",
+                "permissions": "testing_user_4",
+                "seriesHideFromContinueListening": "testing_user_4",
+                "token": "testing_user_4",
+                "type": "testing_user_4",
+                "username": "hass",
+            },
+        ],
+    }
+    assert api.count_open_sessions(data) == 1
+    assert api.count_active_users(data) == 1
+
+    caplog.clear()
+    assert api.get_host() == "some_host"
