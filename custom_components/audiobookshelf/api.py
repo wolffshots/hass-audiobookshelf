@@ -18,7 +18,10 @@ class AudiobookshelfApiClient:
     """API Client for communicating with Audiobookshelf server"""
 
     def __init__(
-        self, host: str, access_token: str, session: aiohttp.ClientSession
+        self,
+        host: str,
+        access_token: str,
+        session: aiohttp.ClientSession,
     ) -> None:
         """Sample API Client."""
         self._host = host
@@ -29,7 +32,7 @@ class AudiobookshelfApiClient:
         """Getter for host var"""
         return self._host
 
-    def count_active_users(self, data):
+    def count_active_users(self, data: dict) -> int:
         """
         Takes in an object with an array of users
         and counts the active ones minus
@@ -47,14 +50,18 @@ class AudiobookshelfApiClient:
                 count += 1
         return count
 
-    def count_open_sessions(self, data):
+    def count_open_sessions(self, data: dict) -> int:
         """
         Counts the number of open stream sessions
         """
         return len(data["openSessions"])
 
     async def api_wrapper(
-        self, method: str, url: str, data: dict = None, headers: dict = None
+        self,
+        method: str,
+        url: str,
+        data: dict | None = None,
+        headers: dict | None = None,
     ) -> dict:
         """Get information from the API."""
         if headers is not None:
@@ -67,7 +74,7 @@ class AudiobookshelfApiClient:
                     response = await self._session.get(url, headers=headers)
                     return await response.json()
 
-                elif method == "put":
+                if method == "put":
                     await self._session.put(url, headers=headers, json=data)
 
                 elif method == "patch":
@@ -95,5 +102,6 @@ class AudiobookshelfApiClient:
                 url,
                 exception,
             )
-        except Exception as exception:  # pylint: disable=broad-except
+        except Exception as exception:
             _LOGGER.error("Something really wrong happened! - %s", exception)
+            raise

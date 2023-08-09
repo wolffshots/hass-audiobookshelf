@@ -1,26 +1,30 @@
 """AudiobookshelfEntity class"""
+from typing import Any
+
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import ATTRIBUTION
-from .const import DOMAIN
-from .const import NAME
-from .const import VERSION
+from .const import ATTRIBUTION, DOMAIN, NAME, VERSION
 
 
 class AudiobookshelfEntity(CoordinatorEntity):
     """Extends the Coordinator Entity which handles polling"""
 
-    def __init__(self, coordinator, config_entry):
+    def __init__(
+        self,
+        coordinator: CoordinatorEntity,
+        config_entry: ConfigEntry,
+    ) -> None:
         super().__init__(coordinator)
         self.config_entry = config_entry
 
     @property
-    def unique_id(self):
+    def unique_id(self) -> str:
         """Return a unique ID to use for this entity."""
         return self.config_entry.entry_id
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         return {
             "identifiers": {(DOMAIN, self.unique_id)},
             "name": NAME,
@@ -29,7 +33,7 @@ class AudiobookshelfEntity(CoordinatorEntity):
         }
 
     @property
-    def device_state_attributes(self):
+    def device_state_attributes(self) -> dict[str, str]:
         """Return the state attributes."""
         return {
             "attribution": ATTRIBUTION,
