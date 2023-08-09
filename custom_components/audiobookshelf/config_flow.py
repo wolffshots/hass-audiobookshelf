@@ -88,10 +88,10 @@ class AudiobookshelfFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 method="get",
                 url=api.get_host() + "/api/users",
             )
-            _LOGGER.info("""test_credentials response was: %s""", response)
+            _LOGGER.debug("""test_credentials response was: %s""", response)
             return True
         except (ConnectionError, TimeoutError) as connection_error:
-            _LOGGER.info("Connection or Timeout error: %s", connection_error)
+            _LOGGER.debug("Connection or Timeout error: %s", connection_error)
             return False
 
         except Exception as exception:
@@ -115,7 +115,8 @@ class AudiobookshelfOptionsFlowHandler(config_entries.OptionsFlow):
         return await self.async_step_user()
 
     async def async_step_user(
-        self, user_input: dict[str, Any] | None = None,
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> Coroutine[Any, Any, FlowResult]:
         """Handle a flow initialized by the user."""
         if user_input is not None:

@@ -39,7 +39,7 @@ class AudiobookshelfSensor(AudiobookshelfEntity):
                 "sessions",
                 "",
             )  # need to work out how to add functionality to the coordinator to fetch /api/users
-            _LOGGER.info("""sensor coordinator got: %s""", coordinator_get)
+            _LOGGER.debug("""sensor coordinator got: %s""", coordinator_get)
 
             if isinstance(coordinator_get, int):
                 return coordinator_get
@@ -47,7 +47,7 @@ class AudiobookshelfSensor(AudiobookshelfEntity):
             return None
 
         except KeyError:
-            _LOGGER.info("sensor: KeyError caught while accessing coordinator data.")
+            _LOGGER.debug("sensor: KeyError caught while accessing coordinator data.")
             return None
 
         except Exception as exception:
