@@ -1,7 +1,5 @@
 """Tests for Audiobookshelf api."""
 import asyncio
-from collections.abc import Coroutine
-from typing import Any
 
 import aiohttp
 import pytest
@@ -19,7 +17,7 @@ async def test_api(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
     caplog: LogCaptureFixture,
-) -> Coroutine[Any, Any, None]:
+) -> None:
     """Test API calls."""
 
     # To test the api submodule, we first create an instance of our API client
@@ -98,7 +96,9 @@ async def test_api(
     aioclient_mock.put("some_host", exc=asyncio.TimeoutError)
     assert (
         await api.api_wrapper(
-            method="put", url="some_host", headers={"Test": "test header"},
+            method="put",
+            url="some_host",
+            headers={"Test": "test header"},
         )
         is None
     )

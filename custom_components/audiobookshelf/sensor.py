@@ -1,7 +1,5 @@
 """Sensor platform for Audiobookshelf."""
 import logging
-from collections.abc import Coroutine
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -17,7 +15,7 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_devices: AddEntitiesCallback,
-) -> Coroutine[Any, Any, None]:
+) -> None:
     """Setup sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_devices([AudiobookshelfSensor(coordinator, entry)])

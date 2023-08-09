@@ -1,7 +1,6 @@
 {
   "domain": "audiobookshelf",
   "name": "Audiobookshelf",
-  "after_dependencies": ["integration"],
   "codeowners": ["@wolffshots"],
   "config_flow": true,
   "dependencies": [],

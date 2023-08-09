@@ -2,8 +2,6 @@
 
 import asyncio
 import logging
-from collections.abc import Coroutine
-from typing import Any, Literal
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -40,7 +38,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
 
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
-    async def _async_update_data(self) -> Coroutine[Any, Any, dict[str, None]]:
+    async def _async_update_data(self) -> dict[str, None]:
         """Update data via library."""
         update = {"connectivity": None, "users": None, "sessions": None}
         try:
@@ -102,7 +100,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
-) -> Coroutine[Any, Any, Literal[True]]:
+) -> bool:
     """Set up this integration using UI."""
     if hass.data.get(DOMAIN) is None:
         hass.data.setdefault(DOMAIN, {})

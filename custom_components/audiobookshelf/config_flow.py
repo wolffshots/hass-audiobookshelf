@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Coroutine
 from typing import Any
 
 import voluptuous as vol
@@ -31,7 +30,7 @@ class AudiobookshelfFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self,
         user_input: dict[str, Any] | None = None,
-    ) -> Coroutine[Any, Any, Any]:
+    ) -> FlowResult:
         """Handle a flow initialized by the user."""
         self._errors = {}
 
@@ -65,7 +64,7 @@ class AudiobookshelfFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def _show_config_form(
         self,
         user_input: dict[str, Any] | None,  # pylint: disable=unused-argument
-    ) -> Coroutine[Any, Any, FlowResult]:
+    ) -> FlowResult:
         """Show the configuration form to edit location data."""
         return self.async_show_form(
             step_id="user",
@@ -79,7 +78,7 @@ class AudiobookshelfFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self,
         host: str,
         access_token: str,
-    ) -> Coroutine[Any, Any, bool]:
+    ) -> bool:
         """Return true if credentials is valid."""
         try:
             session = async_create_clientsession(self.hass)
@@ -110,14 +109,14 @@ class AudiobookshelfOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(
         self,
         user_input: dict[str, Any] | None = None,  # pylint: disable=unused-argument
-    ) -> Coroutine[Any, Any, FlowResult]:
+    ) -> FlowResult:
         """Manage the options."""
         return await self.async_step_user()
 
     async def async_step_user(
         self,
         user_input: dict[str, Any] | None = None,
-    ) -> Coroutine[Any, Any, FlowResult]:
+    ) -> FlowResult:
         """Handle a flow initialized by the user."""
         if user_input is not None:
             self.options.update(user_input)
@@ -133,7 +132,7 @@ class AudiobookshelfOptionsFlowHandler(config_entries.OptionsFlow):
             ),
         )
 
-    async def _update_options(self) -> Coroutine[Any, Any, FlowResult]:
+    async def _update_options(self) -> FlowResult:
         """Update config entry options."""
         return self.async_create_entry(
             title=self.config_entry.data.get(CONF_HOST),

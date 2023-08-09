@@ -1,7 +1,5 @@
 """Binary sensor platform for Audiobookshelf."""
 import logging
-from collections.abc import Coroutine
-from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -18,7 +16,7 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_devices: AddEntitiesCallback,
-) -> Coroutine[Any, Any, None]:
+) -> None:
     """Setup binary_sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_devices([AudiobookshelfBinarySensor(coordinator, entry)])
