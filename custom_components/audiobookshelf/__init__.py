@@ -48,7 +48,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
                 method="get",
                 url=self.api.get_host() + "/ping",
             )
-            _LOGGER.info(
+            _LOGGER.debug(
                 """async_update connectivity_update: %s""",
                 connectivity_update,
             )
@@ -68,7 +68,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
                 url=self.api.get_host() + "/api/users",
             )
             num_users = self.api.count_active_users(users_update)
-            _LOGGER.info("""async_update num_users: %s""", num_users)
+            _LOGGER.debug("""async_update num_users: %s""", num_users)
             update["users"] = num_users
         except ConnectionError:
             update["users"] = "ConnectionError: Unable to connect."
@@ -85,7 +85,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
                 url=self.api.get_host() + "/api/users/online",
             )
             open_sessions = self.api.count_open_sessions(online_users_update)
-            _LOGGER.info("""async_update open_sessions: %s""", open_sessions)
+            _LOGGER.debug("""async_update open_sessions: %s""", open_sessions)
             update["sessions"] = open_sessions
         except ConnectionError:
             update["sessions"] = "ConnectionError: Unable to connect."
