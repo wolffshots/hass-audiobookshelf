@@ -47,6 +47,12 @@ class AudiobookshelfApiClient:
                 count += 1
         return count
 
+    def count_open_sessions(self, data):
+        """
+        Counts the number of open stream sessions
+        """
+        return len(data["openSessions"])
+
     async def api_wrapper(
         self, method: str, url: str, data: dict = None, headers: dict = None
     ) -> dict:

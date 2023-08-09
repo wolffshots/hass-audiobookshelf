@@ -19,7 +19,7 @@ class AudiobookshelfBinarySensor(AudiobookshelfEntity, BinarySensorEntity):
     @property
     def name(self):
         """Return the name of the binary_sensor."""
-        return f"{DOMAIN}_binary_sensor"
+        return f"{DOMAIN}_connected"
 
     @property
     def device_class(self):

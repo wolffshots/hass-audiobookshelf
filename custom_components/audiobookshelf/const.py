@@ -13,5 +13,5 @@ ISSUE_URL = "https://github.com/wolffshots/audiobookshelf/issues"
 
 SCAN_INTERVAL = timedelta(seconds=30)
 
-CONF_ACCESS_TOKEN = "default token"
-CONF_HOST = "default host"
+CONF_ACCESS_TOKEN = "access_token"
+CONF_HOST = "host"

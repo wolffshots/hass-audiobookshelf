@@ -38,7 +38,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Update data via library."""
-        update = {"connectivity": None, "users": None}
+        update = {"connectivity": None, "users": None, "sessions": None}
         try:
             connectivity_update = await self.api.api_wrapper(
                 method="get", url=self.api.get_host() + "/ping"
@@ -58,6 +58,15 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             update["users"] = num_users
         except Exception as exception:  # pylint: disable=broad-exception-caught
             update["users"] = exception
+        try:
+            online_users_update = await self.api.api_wrapper(
+                method="get", url=self.api.get_host() + "/api/users/online"
+            )
+            open_sessions = self.api.count_open_sessions(online_users_update)
+            _LOGGER.info("""async_update open_sessions: %s""", open_sessions)
+            update["sessions"] = open_sessions
+        except Exception as exception:  # pylint: disable=broad-exception-caught
+            update["sessions"] = exception
         return update
 
 

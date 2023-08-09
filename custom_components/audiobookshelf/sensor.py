@@ -18,14 +18,14 @@ class AudiobookshelfSensor(AudiobookshelfEntity):
     @property
     def name(self):
         """Return the name of the sensor."""
-        return f"{DOMAIN}_sensor"
+        return f"{DOMAIN}_sessions"
 
     @property
     def state(self):
         """Return the state of the sensor."""
         try:
             coordinator_get = self.coordinator.data.get(
-                "users", ""
+                "sessions", ""
             )  # need to work out how to add functionality to the coordinator to fetch /api/users
             _LOGGER.info("""sensor coordinator got: %s""", coordinator_get)
             if isinstance(coordinator_get, int):
