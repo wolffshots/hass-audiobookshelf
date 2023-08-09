@@ -43,8 +43,8 @@ Code template was mainly taken from [@Ludeeus](https://github.com/ludeeus)'s [in
 [integration_blueprint]: https://github.com/custom-components/integration_blueprint
 [buymecoffee]: https://www.buymeacoffee.com/ludeeus
 [buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
-[commits-shield]: https://img.shields.io/github/commit-activity/y/wolffshots/audiobookshelf.svg?style=for-the-badge
-[commits]: https://github.com/wolffshots/audiobookshelf/commits/main
+[commits-shield]: https://img.shields.io/github/commit-activity/y/wolffshots/hass-audiobookshelf.svg?style=for-the-badge
+[commits]: https://github.com/wolffshots/hass-audiobookshelf/commits/main
 [hacs]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [discord]: https://discord.gg/Qa5fW2R
@@ -52,9 +52,9 @@ Code template was mainly taken from [@Ludeeus](https://github.com/ludeeus)'s [in
 [exampleimg]: example.png
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
 [forum]: https://community.home-assistant.io/
-[license]: https://github.com/wolffshots/audiobookshelf/blob/main/LICENSE
-[license-shield]: https://img.shields.io/github/license/wolffshots/audiobookshelf.svg?style=for-the-badge
+[license]: https://github.com/wolffshots/hass-audiobookshelf/blob/main/LICENSE
+[license-shield]: https://img.shields.io/github/license/wolffshots/hass-audiobookshelf.svg?style=for-the-badge
 [maintenance-shield]: https://img.shields.io/badge/maintainer-%40wolffshots-blue.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/wolffshots/audiobookshelf.svg?style=for-the-badge
-[releases]: https://github.com/wolffshots/audiobookshelf/releases
+[releases-shield]: https://img.shields.io/github/release/wolffshots/hass-audiobookshelf.svg?style=for-the-badge
+[releases]: https://github.com/wolffshots/hass-audiobookshelf/releases
 [user_profile]: https://github.com/wolffshots

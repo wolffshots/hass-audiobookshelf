@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Audiobookshelf",
-        "description": "If you need help with the configuration have a look here: https://github.com/wolffshots/audiobookshelf",
+        "description": "If you need help with the configuration have a look here: https://github.com/wolffshots/hass-audiobookshelf",
         "data": {
           "host": "Host",
           "access_token": "Access Token"
