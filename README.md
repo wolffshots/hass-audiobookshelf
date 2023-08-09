@@ -11,23 +11,16 @@
 [![Project Maintenance][maintenance-shield]][user_profile]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 
-[![Discord][discord-shield]][discord]
-[![Community Forum][forum-shield]][forum]
-
-**TO BE REMOVED: If you need help, as a developer, to use this custom component tempalte,
-please look at the [User Guide in the Cookiecutter documentation](https://cookiecutter-homeassistant-custom-component.readthedocs.io/en/stable/quickstart.html)**
-
 **This component will set up the following platforms.**
 
-| Platform        | Description                         |
-| --------------- | ----------------------------------- |
-| `binary_sensor` | Show something `True` or `False`.   |
-| `sensor`        | Show info from Audiobookshelf API.  |
-| `switch`        | Switch something `True` or `False`. |
-
-![example][exampleimg]
+| Entity                         | Description                          |
+| ------------------------------ | ------------------------------------ |
+| `binary_sensor`:`connectivity` | Show whether the server is connected |
+| `sensor`:`open_sessions`       | Show number of open audio sessions   |
 
 ## Installation
+
+### Manual installation
 
 1. Using the tool of choice open the directory (folder) for your HA configuration (where you find `configuration.yaml`).
 2. If you do not have a `custom_components` directory (folder) there, you need to create it.
@@ -37,33 +30,9 @@ please look at the [User Guide in the Cookiecutter documentation](https://cookie
 6. Restart Home Assistant
 7. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Audiobookshelf"
 
-Using your HA configuration directory (folder) as a starting point you should now also have this:
-
-```text
-custom_components/audiobookshelf/translations/en.json
-custom_components/audiobookshelf/translations/fr.json
-custom_components/audiobookshelf/translations/nb.json
-custom_components/audiobookshelf/translations/sensor.en.json
-custom_components/audiobookshelf/translations/sensor.fr.json
-custom_components/audiobookshelf/translations/sensor.nb.json
-custom_components/audiobookshelf/translations/sensor.nb.json
-custom_components/audiobookshelf/__init__.py
-custom_components/audiobookshelf/api.py
-custom_components/audiobookshelf/binary_sensor.py
-custom_components/audiobookshelf/config_flow.py
-custom_components/audiobookshelf/const.py
-custom_components/audiobookshelf/manifest.json
-custom_components/audiobookshelf/sensor.py
-custom_components/audiobookshelf/switch.py
-```
-
 ## Configuration is done in the UI
 
 <!---->
-
-## Contributions are welcome!
-
-If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)
 
 ## Credits
 
@@ -84,7 +53,6 @@ Code template was mainly taken from [@Ludeeus](https://github.com/ludeeus)'s [in
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [discord]: https://discord.gg/Qa5fW2R
 [discord-shield]: https://img.shields.io/discord/330944238910963714.svg?style=for-the-badge
-[exampleimg]: example.png
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
 [forum]: https://community.home-assistant.io/
 [license-shield]: https://img.shields.io/github/license/wolffshots/hass-audiobookshelf.svg?style=for-the-badge
