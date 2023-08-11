@@ -71,6 +71,7 @@ coverage = "^7.2"
 
 [tool.poetry.dependencies]
 python = "^3.11"
+asynctest = "^0.13.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -44,13 +44,11 @@ class AudiobookshelfSensor(AudiobookshelfEntity):
 
             return None
 
-        except KeyError:
-            _LOGGER.debug("sensor: KeyError caught while accessing coordinator data.")
+        except AttributeError:
+            _LOGGER.debug(
+                "sensor: AttributeError caught while accessing coordinator data.",
+            )
             return None
-
-        except Exception as exception:
-            _LOGGER.error("sensor caught error on is_on: %s", exception)
-            raise
 
     @property
     def icon(self) -> str:
@@ -59,5 +57,5 @@ class AudiobookshelfSensor(AudiobookshelfEntity):
 
     @property
     def device_class(self) -> str:
-        """Return de device class of the sensor."""
+        """Return device class of the sensor."""
         return "audiobookshelf__custom_device_class"

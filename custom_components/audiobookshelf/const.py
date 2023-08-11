@@ -8,7 +8,7 @@ DOMAIN = "audiobookshelf"
 DOMAIN_DATA = f"{DOMAIN}_data"
 VERSION = "v0.0.1"
 
-ATTRIBUTION = "Data provided by http://jsonplaceholder.typicode.com/"
+ATTRIBUTION = "Server by https://www.audiobookshelf.org/"
 ISSUE_URL = "https://github.com/wolffshots/hass-audiobookshelf/issues"
 
 SCAN_INTERVAL = timedelta(seconds=30)

@@ -107,7 +107,18 @@ async def test_api(
         and "Timeout error fetching information from" in caplog.record_tuples[0][2]
     )
 
+
+def test_api_helpers(
+    hass: HomeAssistant,
+    caplog: LogCaptureFixture,
+) -> None:
+    """Test the functions that extract data from API responses"""
     caplog.clear()
+    api = AudiobookshelfApiClient(
+        host="some_host",
+        access_token="some_access_token",
+        session=async_get_clientsession(hass),
+    )
     data = {"openSessions": [], "users": []}
     assert api.count_open_sessions(data) == 0
     assert api.count_active_users(data) == 0

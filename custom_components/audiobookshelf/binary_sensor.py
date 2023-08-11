@@ -44,21 +44,9 @@ class AudiobookshelfBinarySensor(AudiobookshelfEntity, BinarySensorEntity):
                 "",
             )
             _LOGGER.debug("""binary_sensor coordinator got: %s""", coordinator_get)
-            return (
-                isinstance(coordinator_get, bool) and coordinator_get
-            )  # in this case it is returning a boolean anyways
-        except KeyError:
-            _LOGGER.debug(
-                "binary_sensor: KeyError caught while accessing coordinator data.",
-            )
-            return False
-
+            return isinstance(coordinator_get, bool) and coordinator_get
         except AttributeError:
             _LOGGER.debug(
                 "binary_sensor: AttributeError caught while accessing coordinator data.",
             )
             return False
-
-        except Exception as exception:
-            _LOGGER.error("""binary_sensor caught error on is_on: %s""", exception)
-            raise
