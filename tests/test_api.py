@@ -108,7 +108,7 @@ async def test_api(
     )
 
 
-def test_api_helpers(
+async def test_api_helpers(
     hass: HomeAssistant,
     caplog: LogCaptureFixture,
 ) -> None:

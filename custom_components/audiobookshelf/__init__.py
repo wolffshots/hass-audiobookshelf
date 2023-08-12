@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, Config
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -53,13 +53,11 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             update["connectivity"] = connectivity_update
         except ConnectionError:
             update["connectivity"] = "ConnectionError: Unable to connect."
-        except Timeout:
+        except (TimeoutError, Timeout):
             update["connectivity"] = "TimeoutError: Request timed out."
+            print("I ran\n\n\n\n\n")
         except HTTPError as http_error:
-            update["connectivity"] = f"HTTPError: {http_error}"
-        except Exception as exception:
-            _LOGGER.error("Unhandled error occurred: %s", exception)
-            raise  # Re-raise the exception to allow it to be properly handled elsewhere
+            update["connectivity"] = f"HTTPError: Generic HTTP Error happened {http_error}"
         try:
             users_update = await self.api.api_wrapper(
                 method="get",
@@ -70,13 +68,10 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             update["users"] = num_users
         except ConnectionError:
             update["users"] = "ConnectionError: Unable to connect."
-        except Timeout:
+        except (TimeoutError, Timeout):
             update["users"] = "TimeoutError: Request timed out."
         except HTTPError as http_error:
-            update["users"] = f"HTTPError: {http_error}"
-        except Exception as exception:
-            _LOGGER.error("Unhandled error occurred: %s", exception)
-            raise  # Re-raise the exception to allow it to be properly handled elsewhere
+            update["users"] = f"HTTPError: Generic HTTP Error happened {http_error}"
         try:
             online_users_update = await self.api.api_wrapper(
                 method="get",
@@ -87,15 +82,15 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             update["sessions"] = open_sessions
         except ConnectionError:
             update["sessions"] = "ConnectionError: Unable to connect."
-        except Timeout:
+        except (TimeoutError, Timeout):
             update["sessions"] = "TimeoutError: Request timed out."
         except HTTPError as http_error:
-            update["sessions"] = f"HTTPError: {http_error}"
-        except Exception as exception:
-            _LOGGER.error("Unhandled error occurred: %s", exception)
-            raise  # Re-raise the exception to allow it to be properly handled elsewhere
+            update["sessions"] = f"HTTPError: Generic HTTP Error happened {http_error}"
         return update
 
+async def async_setup(hass: HomeAssistant, config: Config):
+    """Set up this integration using YAML is not supported."""
+    return True
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -124,7 +119,7 @@ async def async_setup_entry(
     session = async_get_clientsession(hass)
     client = AudiobookshelfApiClient(host, access_token, session)
 
-    coordinator = AudiobookshelfDataUpdateCoordinator(hass, client=client)
+    coordinator = AudiobookshelfDataUpdateCoordinator(hass=hass, client=client)
     await coordinator.async_refresh()
 
     if not coordinator.last_update_success:
@@ -157,8 +152,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unloaded:
         hass.data[DOMAIN].pop(entry.entry_id)
 
-    return unloaded
-
+        return unloaded
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""

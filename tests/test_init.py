@@ -1,8 +1,8 @@
 """Test Audiobookshelf setup process."""
-from unittest.mock import patch
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import ConfigEntryNotReady
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
@@ -12,6 +12,7 @@ from custom_components.audiobookshelf import (
     async_reload_entry,
     async_setup_entry,
     async_unload_entry,
+    async_setup,
 )
 from custom_components.audiobookshelf.const import (
     DOMAIN,
@@ -21,17 +22,49 @@ from .const import MOCK_CONFIG
 
 pytest_plugins = "pytest_homeassistant_custom_component"
 
+config_entry = ConfigEntry(
+    domain=DOMAIN,
+    data=MOCK_CONFIG,
+    entry_id="test_entry_id_setup",
+    version=1,
+    title="Audiobookshelf",
+    source="some source",
+)
 
-# In this fixture, we are forcing calls to api_wrapper to raise an Exception. This is useful
-# for exception handling.
-@pytest.fixture(name="error_on_get_data")
-def error_get_data_fixture() -> None:
-    """Simulate error when retrieving data from API."""
-    with patch(
-        "custom_components.audiobookshelf.AudiobookshelfApiClient.api_wrapper",
-        side_effect=Exception,
-    ):
-        yield None
+async def test_setup(hass: HomeAssistant,):
+    assert (await async_setup(hass, MOCK_CONFIG)) is True
+    
+async def test_setup_entry(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    aioclient_mock.get("some_host/ping", json={"success": True})
+    aioclient_mock.get("some_host/api/users", json={"users": []})
+    aioclient_mock.get("some_host/api/users/online", json={"openSessions": []})
+    assert await async_setup_entry(hass, config_entry)
+    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    assert isinstance(
+        hass.data['audiobookshelf']['test_entry_id_setup'],
+        AudiobookshelfDataUpdateCoordinator,
+    )
+    aioclient_mock.clear_requests()
+
+async def test_unload_entry(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    aioclient_mock.get("some_host/ping", json={"success": True})
+    aioclient_mock.get("some_host/api/users", json={"users": []})
+    aioclient_mock.get("some_host/api/users/online", json={"openSessions": []})
+    assert await async_setup_entry(hass, config_entry)
+    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    assert isinstance(
+        hass.data[DOMAIN][config_entry.entry_id],
+        AudiobookshelfDataUpdateCoordinator,
+    )
+    assert await async_unload_entry(hass, config_entry)
+    assert config_entry.entry_id not in hass.data[DOMAIN]
+    aioclient_mock.clear_requests()
 
 
 async def test_setup_unload_and_reload_entry(
@@ -40,11 +73,6 @@ async def test_setup_unload_and_reload_entry(
 ) -> None:
     """Test entry setup and unload."""
     # Create a mock entry so we don't have to go through config flow
-    config_entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=MOCK_CONFIG,
-        entry_id="audiobookshelf",
-    )
     aioclient_mock.get("some_host/ping", json={"success": True})
     aioclient_mock.get("some_host/api/users", json={"users": []})
     aioclient_mock.get("some_host/api/users/online", json={"openSessions": []})
@@ -58,7 +86,6 @@ async def test_setup_unload_and_reload_entry(
         hass.data[DOMAIN][config_entry.entry_id],
         AudiobookshelfDataUpdateCoordinator,
     )
-
     assert await async_unload_entry(hass, config_entry)
     assert config_entry.entry_id not in hass.data[DOMAIN]
 
@@ -89,10 +116,66 @@ async def test_setup_entry_exception(
     error_on_get_data: None,  # pylint: disable=unused-argument
 ) -> None:
     """Test ConfigEntryNotReady when API raises an exception during entry setup."""
-    config_entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="test")
-
     # In this case we are testing the condition where async_setup_entry raises
     # ConfigEntryNotReady using the `error_on_get_data` fixture which simulates
     # an error.
     with pytest.raises(ConfigEntryNotReady):
         assert await async_setup_entry(hass, config_entry)
+
+async def test_setup_entry_connectivity_exception(
+    hass: HomeAssistant,
+    connectivity_error_on_get_data: None,  # pylint: disable=unused-argument
+) -> None:
+    """Test connectivity error response when API raises an exception during entry setup."""
+
+    assert await async_setup_entry(hass, config_entry)
+    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    assert isinstance(
+        hass.data[DOMAIN][config_entry.entry_id],
+        AudiobookshelfDataUpdateCoordinator,
+    )
+    assert hass.data[DOMAIN][config_entry.entry_id].data.get("connectivity", "") == "ConnectionError: Unable to connect."
+    assert hass.data[DOMAIN][config_entry.entry_id].data.get("users", "") == "ConnectionError: Unable to connect."
+    assert hass.data[DOMAIN][config_entry.entry_id].data.get("sessions", "") == "ConnectionError: Unable to connect."
+
+    assert await async_unload_entry(hass, config_entry)
+    assert config_entry.entry_id not in hass.data[DOMAIN]
+
+async def test_setup_entry_timeout_exception(
+    hass: HomeAssistant,
+    timeout_error_on_get_data: None,  # pylint: disable=unused-argument
+) -> None:
+    """Test timeout error response when API raises an exception during entry setup."""
+
+    assert await async_setup_entry(hass, config_entry)
+    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    assert isinstance(
+        hass.data[DOMAIN][config_entry.entry_id],
+        AudiobookshelfDataUpdateCoordinator,
+    )
+    assert hass.data[DOMAIN][config_entry.entry_id].data.get("connectivity", "") == "TimeoutError: Request timed out."
+    assert hass.data[DOMAIN][config_entry.entry_id].data.get("users", "") == "TimeoutError: Request timed out."
+    assert hass.data[DOMAIN][config_entry.entry_id].data.get("sessions", "") == "TimeoutError: Request timed out."
+
+    assert await async_unload_entry(hass, config_entry)
+    assert config_entry.entry_id not in hass.data[DOMAIN]
+
+
+async def test_setup_entry_http_exception(
+    hass: HomeAssistant,
+    http_error_on_get_data: None,  # pylint: disable=unused-argument
+) -> None:
+    """Test http error response when API raises an exception during entry setup."""
+
+    assert await async_setup_entry(hass, config_entry)
+    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    assert isinstance(
+        hass.data[DOMAIN][config_entry.entry_id],
+        AudiobookshelfDataUpdateCoordinator,
+    )
+    assert hass.data[DOMAIN][config_entry.entry_id].data.get("connectivity", "") == "HTTPError: Generic HTTP Error happened "
+    assert hass.data[DOMAIN][config_entry.entry_id].data.get("users", "") == "HTTPError: Generic HTTP Error happened "
+    assert hass.data[DOMAIN][config_entry.entry_id].data.get("sessions", "") == "HTTPError: Generic HTTP Error happened "
+
+    assert await async_unload_entry(hass, config_entry)
+    assert config_entry.entry_id not in hass.data[DOMAIN]
