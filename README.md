@@ -32,7 +32,7 @@
 
 ## Configuration is done in the UI
 
-<!---->
+![Config in UI](docs/hass-audiobookshelf-config.png)
 
 ## Credits
 
@@ -51,10 +51,6 @@ Code template was mainly taken from [@Ludeeus](https://github.com/ludeeus)'s [in
 [commits]: https://github.com/wolffshots/hass-audiobookshelf/commits/main
 [hacs]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
-[discord]: https://discord.gg/Qa5fW2R
-[discord-shield]: https://img.shields.io/discord/330944238910963714.svg?style=for-the-badge
-[forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
-[forum]: https://community.home-assistant.io/
 [license-shield]: https://img.shields.io/github/license/wolffshots/hass-audiobookshelf.svg?style=for-the-badge
 [maintenance-shield]: https://img.shields.io/badge/maintainer-%40wolffshots-blue.svg?style=for-the-badge
 [pre-commit]: https://github.com/pre-commit/pre-commit
