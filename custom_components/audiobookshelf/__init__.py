@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, Config
+from homeassistant.core import Config, HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -17,6 +17,7 @@ from .const import (
     CONF_HOST,
     DOMAIN,
     ISSUE_URL,
+    PLATFORMS,
     SCAN_INTERVAL,
     VERSION,
 )
@@ -55,7 +56,6 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             update["connectivity"] = "ConnectionError: Unable to connect."
         except (TimeoutError, Timeout):
             update["connectivity"] = "TimeoutError: Request timed out."
-            print("I ran\n\n\n\n\n")
         except HTTPError as http_error:
             update["connectivity"] = f"HTTPError: Generic HTTP Error happened {http_error}"
         try:
@@ -88,7 +88,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             update["sessions"] = f"HTTPError: Generic HTTP Error happened {http_error}"
         return update
 
-async def async_setup(hass: HomeAssistant, config: Config):
+async def async_setup(hass: HomeAssistant, config: Config) -> bool:
     """Set up this integration using YAML is not supported."""
     return True
 
@@ -127,7 +127,7 @@ async def async_setup_entry(
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    for platform in ["binary_sensor", "sensor"]:
+    for platform in PLATFORMS:
         if entry.options.get(platform, True):
             coordinator.platforms.append(platform)
             hass.async_add_job(
@@ -144,7 +144,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await asyncio.gather(
             *[
                 hass.config_entries.async_forward_entry_unload(entry, platform)
-                for platform in ["binary_sensor", "sensor"]
+                for platform in PLATFORMS
                 if platform in coordinator.platforms
             ],
         ),
@@ -152,7 +152,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unloaded:
         hass.data[DOMAIN].pop(entry.entry_id)
 
-        return unloaded
+    return unloaded
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""

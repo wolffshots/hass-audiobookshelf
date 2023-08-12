@@ -1,18 +1,17 @@
 """Test Audiobookshelf setup process."""
 
 import pytest
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.audiobookshelf import (
     AudiobookshelfDataUpdateCoordinator,
     async_reload_entry,
+    async_setup,
     async_setup_entry,
     async_unload_entry,
-    async_setup,
 )
 from custom_components.audiobookshelf.const import (
     DOMAIN,
@@ -31,9 +30,9 @@ config_entry = ConfigEntry(
     source="some source",
 )
 
-async def test_setup(hass: HomeAssistant,):
+async def test_setup(hass: HomeAssistant)->None:
     assert (await async_setup(hass, MOCK_CONFIG)) is True
-    
+
 async def test_setup_entry(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
@@ -44,7 +43,7 @@ async def test_setup_entry(
     assert await async_setup_entry(hass, config_entry)
     assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
     assert isinstance(
-        hass.data['audiobookshelf']['test_entry_id_setup'],
+        hass.data["audiobookshelf"]["test_entry_id_setup"],
         AudiobookshelfDataUpdateCoordinator,
     )
     aioclient_mock.clear_requests()

@@ -162,3 +162,5 @@ cython_debug/
 .DS_Store
 
 test
+
+test_creds.py

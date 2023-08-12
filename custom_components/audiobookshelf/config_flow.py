@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
@@ -12,7 +13,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import AudiobookshelfApiClient
-from .const import CONF_ACCESS_TOKEN, CONF_HOST, DOMAIN
+from .const import CONF_ACCESS_TOKEN, CONF_HOST, DOMAIN, PLATFORMS
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
 
@@ -88,14 +89,16 @@ class AudiobookshelfFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 url=api.get_host() + "/api/users",
             )
             _LOGGER.debug("""test_credentials response was: %s""", response)
-            return True
-        except (ConnectionError, TimeoutError) as connection_error:
-            _LOGGER.debug("Connection or Timeout error: %s", connection_error)
+            if response:
+                return True
+            return False
+        except (ConnectionError, TimeoutError) as connection_or_timeout_error:
+            _LOGGER.debug("Connection or Timeout error: %s", connection_or_timeout_error)
             return False
 
-        except Exception as exception:
-            _LOGGER.error("test_credentials failed due to: %s", exception)
-            raise
+        except aiohttp.ClientResponseError as client_response_error:
+            _LOGGER.debug("ClientResponse Error: %s - %s", client_response_error.status, client_response_error.message)
+            return False
 
 
 class AudiobookshelfOptionsFlowHandler(config_entries.OptionsFlow):
@@ -127,7 +130,7 @@ class AudiobookshelfOptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(x, default=self.options.get(x, True)): bool
-                    for x in sorted(["binary_sensor", "sensor"])
+                    for x in sorted(PLATFORMS)
                 },
             ),
         )

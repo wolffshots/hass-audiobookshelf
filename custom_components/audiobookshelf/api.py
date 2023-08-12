@@ -72,7 +72,8 @@ class AudiobookshelfApiClient:
             async with async_timeout.timeout(TIMEOUT):  # loop=asyncio.get_event_loop()
                 if method == "get":
                     response = await self._session.get(url, headers=headers)
-                    return await response.json()
+                    if response.status >= 200 and response.status < 300:
+                        return await response.json()
 
                 if method == "put":
                     await self._session.put(url, headers=headers, json=data)
