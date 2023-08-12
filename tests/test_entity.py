@@ -3,9 +3,7 @@ from unittest.mock import Mock
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.audiobookshelf.const import (
-    DOMAIN,
-)
+from custom_components.audiobookshelf.const import DOMAIN, VERSION
 from custom_components.audiobookshelf.entity import AudiobookshelfEntity
 
 from .const import MOCK_CONFIG
@@ -35,7 +33,7 @@ def test_device_info(mock_coordinator: Mock) -> None:
     assert entity.device_info == {
         "identifiers": {("audiobookshelf", "audiobookshelf")},
         "manufacturer": "Audiobookshelf",
-        "model": "v0.0.1",
+        "model": VERSION,
         "name": "Audiobookshelf",
     }
 
