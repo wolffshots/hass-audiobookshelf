@@ -5,6 +5,7 @@ on:
   pull_request:
   schedule:
     - cron: "00 12 * * *"
+  workflow_dispatch:
 
 jobs:
   validate-hassfest:
