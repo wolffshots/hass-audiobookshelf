@@ -30,8 +30,18 @@
 6. Restart Home Assistant
 7. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Audiobookshelf"
 
-## Configuration is done in the UI
+## Configuration
 
+### Getting an access token
+
+1. Log in as the admin user
+2. Go to Settings > Users
+3. Click on the account
+4. Copy the API Token from beneath the user's name
+
+For more info on what the token can be used for see: https://api.audiobookshelf.org/#introduction
+
+### Setting up via the UI
 ![Config in UI](docs/hass-audiobookshelf-config.png)
 
 ## Credits
