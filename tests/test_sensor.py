@@ -9,8 +9,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.audiobookshelf.const import (
     DOMAIN,
 )
-from custom_components.audiobookshelf.sessions_sensor import (
-    AudiobookshelfSessionSensor,
+from custom_components.audiobookshelf.sensor import (
+    AudiobookshelfSensor,
     async_setup_entry,
 )
 
@@ -53,7 +53,7 @@ async def test_sensor_init_entry(
     """Test the initialisation."""
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="sensors")
     m_add_entities = Mock()
-    m_device = AudiobookshelfSessionSensor(
+    m_device = AudiobookshelfSensor(
         coordinator=mock_coordinator,
         config_entry=entry,
     )
@@ -65,7 +65,7 @@ async def test_sensor_init_entry(
     await async_setup_entry(hass, entry, m_add_entities)
     assert isinstance(
         hass.data[DOMAIN]["sensors"]["audiobookshelf_sessions"],
-        AudiobookshelfSessionSensor,
+        AudiobookshelfSensor,
     )
     m_add_entities.assert_called_once()
 
@@ -73,7 +73,7 @@ async def test_sensor_init_entry(
 async def test_sensor_properties(mock_coordinator: Mock) -> None:
     """Test that the sensor returns the correct properties"""
     config_entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="sensors")
-    sensor = AudiobookshelfSessionSensor(
+    sensor = AudiobookshelfSensor(
         coordinator=mock_coordinator,
         config_entry=config_entry,
     )
@@ -86,7 +86,7 @@ async def test_sensor_properties(mock_coordinator: Mock) -> None:
 async def test_sensor_unknown(mock_coordinator_unknown: Mock) -> None:
     """Test that the sensor returns the correct properties"""
     config_entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="sensors")
-    sensor = AudiobookshelfSessionSensor(
+    sensor = AudiobookshelfSensor(
         coordinator=mock_coordinator_unknown,
         config_entry=config_entry,
     )
@@ -100,7 +100,7 @@ async def test_sensor_error(
     """Test for exception handling on exception on coordinator"""
     caplog.clear()
     config_entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="sensors")
-    sensor = AudiobookshelfSessionSensor(
+    sensor = AudiobookshelfSensor(
         coordinator=mock_coordinator_error,
         config_entry=config_entry,
     )
