@@ -4,7 +4,6 @@ import logging
 import socket
 
 import aiohttp
-import async_timeout
 
 TIMEOUT = 10
 
@@ -69,7 +68,7 @@ class AudiobookshelfApiClient:
         else:
             headers = {"Authorization": f"Bearer {self._access_token}"}
         try:
-            async with async_timeout.timeout(TIMEOUT):  # loop=asyncio.get_event_loop()
+            async with asyncio.timeout(TIMEOUT):  # loop=asyncio.get_event_loop()
                 if method == "get":
                     response = await self._session.get(url, headers=headers)
                     if response.status >= 200 and response.status < 300:
