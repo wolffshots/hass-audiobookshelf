@@ -28,6 +28,7 @@ config_entry = ConfigEntry(
     version=1,
     title="Audiobookshelf",
     source="some source",
+    minor_version=1,
 )
 
 async def test_setup(hass: HomeAssistant)->None:
