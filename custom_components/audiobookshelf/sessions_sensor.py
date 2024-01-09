@@ -18,10 +18,10 @@ async def async_setup_entry(
 ) -> None:
     """Setup sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_devices([AudiobookshelfSensor(coordinator, entry)])
+    async_add_devices([AudiobookshelfSessionSensor(coordinator, entry)])
 
 
-class AudiobookshelfSensor(AudiobookshelfEntity):
+class AudiobookshelfSessionSensor(AudiobookshelfEntity):
     """audiobookshelf Sensor class."""
 
     @property
