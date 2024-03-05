@@ -72,6 +72,7 @@ coverage = "^7.2"
 [tool.poetry.dependencies]
 python = ">=3.11, <3.13"
 asynctest = "^0.13.0"
+homeassistant = "^2024.2.5"
 
 [build-system]
 requires = ["poetry-core"]
