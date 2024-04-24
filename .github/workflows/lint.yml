@@ -23,7 +23,7 @@ jobs:
           python-version: '3.11'
       - name: Load cached Poetry installation
         id: cached-poetry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.local
           key: poetry-${{ env.POETRY_VERSION }}
@@ -36,7 +36,7 @@ jobs:
           installer-parallel: true
       - name: cache dependencies
         id: cache-deps
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: .venv
           key: pydeps-${{ hashFiles('**/poetry.lock') }}
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Audiobookshelf
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Run Ruff
         uses: chartboost/ruff-action@v1
         with:
