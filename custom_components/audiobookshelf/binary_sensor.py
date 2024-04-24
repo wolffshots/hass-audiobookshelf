@@ -5,6 +5,7 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass, Bina
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .entity import AudiobookshelfEntity
@@ -25,12 +26,13 @@ async def async_setup_entry(
 class AudiobookshelfBinarySensor(AudiobookshelfEntity, BinarySensorEntity):
     """audiobookshelf binary_sensor class."""
 
-    def __init__(self) -> None:
+    def __init__(self, coordinator: CoordinatorEntity, entry: ConfigEntry) -> None:
         self._attr_name = f"{DOMAIN} Connected"
         self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
         # self._attr_device_info = ...  # For automatic device registration
         self._attr_unique_id = f"binary_sensor.{DOMAIN}_connected"
         self._attr_icon = "mdi:format-quote-close"
+        super().__init__(coordinator, entry)
 
     @property
     def is_on(self) -> bool:

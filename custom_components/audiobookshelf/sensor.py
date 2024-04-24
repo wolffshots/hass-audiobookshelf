@@ -4,6 +4,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .entity import AudiobookshelfEntity
@@ -27,12 +28,13 @@ async def async_setup_entry(
 class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
     """audiobookshelf Sessions Sensor class."""
 
-    def __init__(self) -> None:
+    def __init__(self, coordinator: CoordinatorEntity, entry: ConfigEntry) -> None:
         self._attr_name = f"{DOMAIN} Sessions"
         self._attr_device_class = f"{DOMAIN}__custom_device_class"
         # self._attr_device_info = ...  # For automatic device registration
         self._attr_unique_id = f"sensor.{DOMAIN}_sessions"
         self._attr_icon ="mdi:format-quote-close"
+        super().__init__(coordinator, entry)
 
     @property
     def state(self) -> int | None:
@@ -58,12 +60,13 @@ class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
 class AudiobookshelfNumberOfLibrariesSensor(AudiobookshelfEntity):
     """audiobookshelf Number of Libraries Sensor class."""
 
-    def __init__(self) -> None:
+    def __init__(self, coordinator: CoordinatorEntity, entry: ConfigEntry) -> None:
         self._attr_name = f"{DOMAIN} Libraries"
         self._attr_device_class = f"{DOMAIN}__custom_device_class"
         # self._attr_device_info = ...  # For automatic device registration
         self._attr_unique_id = f"sensor.{DOMAIN}_libraries"
         self._attr_icon ="mdi:format-quote-close"
+        super().__init__(coordinator, entry)
 
     @property
     def state(self) -> int | None:
