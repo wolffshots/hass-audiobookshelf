@@ -19,11 +19,6 @@ class AudiobookshelfEntity(CoordinatorEntity):
         self.config_entry = config_entry
 
     @property
-    def unique_id(self) -> str:
-        """Return a unique ID to use for this entity."""
-        return self.config_entry.entry_id
-
-    @property
     def device_info(self) -> dict[str, Any]:
         return {
             "identifiers": {(DOMAIN, self.unique_id)},

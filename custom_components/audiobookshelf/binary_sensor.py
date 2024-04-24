@@ -26,9 +26,14 @@ class AudiobookshelfBinarySensor(AudiobookshelfEntity, BinarySensorEntity):
     """audiobookshelf binary_sensor class."""
 
     @property
+    def unique_id(self) -> str:
+        """Return a unique ID to use for this entity."""
+        return f"{DOMAIN}_connected"
+
+    @property
     def name(self) -> str:
         """Return the name of the binary_sensor."""
-        return f"{DOMAIN}_connected"
+        return f"{DOMAIN} Connected"
 
     @property
     def device_class(self) -> str:

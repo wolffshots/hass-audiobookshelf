@@ -11,7 +11,7 @@
 | Entity          |       Type       | Description                          |
 | --------------- | ---------------- | ------------------------------------ |
 | `connectivity`  | `binary_sensor`  | Show whether the server is connected |
-| `open_sessions` | `sensor`         | Show number of open audio sessions   |
+| `sessions`      | `sensor`         | Show number of open audio sessions   |
 | `libraries`     | `sensor`         | Number of libraries on the server    |
 
 {% if not installed %}

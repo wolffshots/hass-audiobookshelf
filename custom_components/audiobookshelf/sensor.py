@@ -28,6 +28,11 @@ class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
     """audiobookshelf Sessions Sensor class."""
 
     @property
+    def unique_id(self) -> str:
+        """Return a unique ID to use for this entity."""
+        return f"{DOMAIN}_sessions"
+
+    @property
     def name(self) -> str:
         """Return the name of the sensor."""
         return f"{DOMAIN} Sessions"
@@ -65,6 +70,11 @@ class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
 
 class AudiobookshelfNumberOfLibrariesSensor(AudiobookshelfEntity):
     """audiobookshelf Number of Libraries Sensor class."""
+
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID to use for this entity."""
+        return f"{DOMAIN}_libraries"
 
     @property
     def name(self) -> str:
