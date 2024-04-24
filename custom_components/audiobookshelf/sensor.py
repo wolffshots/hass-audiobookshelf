@@ -27,10 +27,12 @@ async def async_setup_entry(
 class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
     """audiobookshelf Sessions Sensor class."""
 
-    _attr_name = f"{DOMAIN} Sessions"
-    _attr_device_class = f"{DOMAIN}__custom_device_class"
-    _attr_icon ="mdi:format-quote-close"
-    entity_id = f"sensor.{DOMAIN}_sessions"
+    def __init__(self) -> None:
+        self._attr_name = f"{DOMAIN} Sessions"
+        self._attr_device_class = f"{DOMAIN}__custom_device_class"
+        # self._attr_device_info = ...  # For automatic device registration
+        self._attr_unique_id = f"sensor.{DOMAIN}_sessions"
+        self._attr_icon ="mdi:format-quote-close"
 
     @property
     def state(self) -> int | None:
@@ -56,10 +58,12 @@ class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
 class AudiobookshelfNumberOfLibrariesSensor(AudiobookshelfEntity):
     """audiobookshelf Number of Libraries Sensor class."""
 
-    _attr_name = f"{DOMAIN} Libraries"
-    _attr_device_class = f"{DOMAIN}__custom_device_class"
-    _attr_icon ="mdi:format-quote-close"
-    entity_id = f"sensor.{DOMAIN}_libraries"
+    def __init__(self) -> None:
+        self._attr_name = f"{DOMAIN} Libraries"
+        self._attr_device_class = f"{DOMAIN}__custom_device_class"
+        # self._attr_device_info = ...  # For automatic device registration
+        self._attr_unique_id = f"sensor.{DOMAIN}_libraries"
+        self._attr_icon ="mdi:format-quote-close"
 
     @property
     def state(self) -> int | None:

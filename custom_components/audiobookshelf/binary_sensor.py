@@ -25,10 +25,12 @@ async def async_setup_entry(
 class AudiobookshelfBinarySensor(AudiobookshelfEntity, BinarySensorEntity):
     """audiobookshelf binary_sensor class."""
 
-    _attr_name = f"{DOMAIN} Connected"
-    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-    _attr_icon ="mdi:format-quote-close"
-    entity_id = f"binary_sensor.{DOMAIN}_connected"
+    def __init__(self) -> None:
+        self._attr_name = f"{DOMAIN} Connected"
+        self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+        # self._attr_device_info = ...  # For automatic device registration
+        self._attr_unique_id = f"binary_sensor.{DOMAIN}_connected"
+        self._attr_icon = "mdi:format-quote-close"
 
     @property
     def is_on(self) -> bool:
