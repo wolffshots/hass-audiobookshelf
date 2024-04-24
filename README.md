@@ -11,12 +11,13 @@
 [![Project Maintenance][maintenance-shield]][user_profile]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 
-**This component will set up the following platforms.**
+**This component will set up the following sensors.**
 
-| Entity                         | Description                          |
-| ------------------------------ | ------------------------------------ |
-| `binary_sensor`:`connectivity` | Show whether the server is connected |
-| `sensor`:`open_sessions`       | Show number of open audio sessions   |
+| Entity          |       Type       | Description                          |
+| --------------- | ---------------- | ------------------------------------ |
+| `connectivity`  | `binary_sensor`  | Show whether the server is connected |
+| `open_sessions` | `sensor`         | Show number of open audio sessions   |
+| `libraries`     | `sensor`         | Number of libraries on the server    |
 
 ## Installation
 

@@ -2,19 +2,17 @@
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE)
 
-[![pre-commit][pre-commit-shield]][pre-commit]
-[![Black][black-shield]][black]
-
 [![hacs][hacsbadge]][hacs]
 [![Project Maintenance][maintenance-shield]][user_profile]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 
 **This component will set up the following platforms.**
 
-| Entity                         | Description                          |
-| ------------------------------ | ------------------------------------ |
-| `binary_sensor`:`connectivity` | Show whether the server is connected |
-| `sensor`:`open_sessions`       | Show number of open audio sessions   |
+| Entity          |       Type       | Description                          |
+| --------------- | ---------------- | ------------------------------------ |
+| `connectivity`  | `binary_sensor`  | Show whether the server is connected |
+| `open_sessions` | `sensor`         | Show number of open audio sessions   |
+| `libraries`     | `sensor`         | Number of libraries on the server    |
 
 {% if not installed %}
 
