@@ -1,7 +1,7 @@
 """Binary sensor platform for Audiobookshelf."""
 import logging
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -15,30 +15,20 @@ _LOGGER: logging.Logger = logging.getLogger(__package__)
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
-    async_add_devices: AddEntitiesCallback,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Setup binary_sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_devices([AudiobookshelfBinarySensor(coordinator, entry)])
+    async_add_entities([AudiobookshelfBinarySensor(coordinator, entry)])
 
 
 class AudiobookshelfBinarySensor(AudiobookshelfEntity, BinarySensorEntity):
     """audiobookshelf binary_sensor class."""
 
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID to use for this entity."""
-        return f"{DOMAIN}_connected"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the binary_sensor."""
-        return f"{DOMAIN} Connected"
-
-    @property
-    def device_class(self) -> str:
-        """Return the class of this binary_sensor."""
-        return "connectivity"
+    _attr_name = f"{DOMAIN} Connected"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_icon ="mdi:format-quote-close"
+    entity_id = f"{DOMAIN}_connected"
 
     @property
     def is_on(self) -> bool:

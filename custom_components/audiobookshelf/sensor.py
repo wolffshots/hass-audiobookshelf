@@ -14,11 +14,11 @@ _LOGGER: logging.Logger = logging.getLogger(__package__)
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
-    async_add_devices: AddEntitiesCallback,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Setup sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_devices([
+    async_add_entities([
         AudiobookshelfSessionsSensor(coordinator, entry),
         AudiobookshelfNumberOfLibrariesSensor(coordinator, entry),
     ])
@@ -27,15 +27,10 @@ async def async_setup_entry(
 class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
     """audiobookshelf Sessions Sensor class."""
 
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID to use for this entity."""
-        return f"{DOMAIN}_sessions"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        return f"{DOMAIN} Sessions"
+    _attr_name = f"{DOMAIN} Sessions"
+    _attr_device_class = f"{DOMAIN}__custom_device_class"
+    _attr_icon ="mdi:format-quote-close"
+    entity_id = f"{DOMAIN}_sessions"
 
     @property
     def state(self) -> int | None:
@@ -58,28 +53,13 @@ class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
             )
             return None
 
-    @property
-    def icon(self) -> str:
-        """Return the icon of the sensor."""
-        return "mdi:format-quote-close"
-
-    @property
-    def device_class(self) -> str:
-        """Return device class of the sensor."""
-        return "audiobookshelf__custom_device_class"
-
 class AudiobookshelfNumberOfLibrariesSensor(AudiobookshelfEntity):
     """audiobookshelf Number of Libraries Sensor class."""
 
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID to use for this entity."""
-        return f"{DOMAIN}_libraries"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        return f"{DOMAIN} Number of Libraries"
+    _attr_name = f"{DOMAIN} Libraries"
+    _attr_device_class = f"{DOMAIN}__custom_device_class"
+    _attr_icon ="mdi:format-quote-close"
+    entity_id = f"{DOMAIN}_libraries"
 
     @property
     def state(self) -> int | None:
@@ -102,13 +82,3 @@ class AudiobookshelfNumberOfLibrariesSensor(AudiobookshelfEntity):
                 "sensor: AttributeError caught while accessing coordinator data.",
             )
             return None
-
-    @property
-    def icon(self) -> str:
-        """Return the icon of the sensor."""
-        return "mdi:format-quote-close"
-
-    @property
-    def device_class(self) -> str:
-        """Return device class of the sensor."""
-        return "audiobookshelf__custom_device_class"
