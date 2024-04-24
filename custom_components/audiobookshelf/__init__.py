@@ -1,7 +1,6 @@
 """Init for audiobookshelf integration"""
 
 import asyncio
-import json
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -92,7 +91,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
                 method="get",
                 url=self.api.get_host() + "/api/libraries",
             )
-            update["libraries"] = json.loads(library_stats_update)
+            update["libraries"] = library_stats_update
         except ConnectionError:
             update["libraries"] = "ConnectionError: Unable to connect."
         except (TimeoutError, Timeout):
