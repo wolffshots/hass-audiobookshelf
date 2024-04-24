@@ -49,7 +49,7 @@ max-complexity = 15
 
 [tool.poetry]
 name = "audiobookshelf"
-version = "v0.0.6"
+version = "v0.1.0"
 description = "Audiobookshelf HA custom component"
 authors = ["wolffshots <16850875+wolffshots@users.noreply.github.com>"]
 readme = "README.md"

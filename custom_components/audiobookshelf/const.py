@@ -6,7 +6,7 @@ from datetime import timedelta
 NAME = "Audiobookshelf"
 DOMAIN = "audiobookshelf"
 DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "v0.0.6"
+VERSION = "v0.1.0"
 
 ATTRIBUTION = "Server by https://www.audiobookshelf.org/"
 ISSUE_URL = "https://github.com/wolffshots/hass-audiobookshelf/issues"

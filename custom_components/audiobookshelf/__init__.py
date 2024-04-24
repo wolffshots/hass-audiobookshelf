@@ -1,6 +1,7 @@
 """Init for audiobookshelf integration"""
 
 import asyncio
+import json
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -86,6 +87,18 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             update["sessions"] = "TimeoutError: Request timed out."
         except HTTPError as http_error:
             update["sessions"] = f"HTTPError: Generic HTTP Error happened {http_error}"
+        try:
+            library_stats_update = await self.api.api_wrapper(
+                method="get",
+                url=self.api.get_host() + "/api/libraries",
+            )
+            update["libraries"] = json.loads(library_stats_update)
+        except ConnectionError:
+            update["libraries"] = "ConnectionError: Unable to connect."
+        except (TimeoutError, Timeout):
+            update["libraries"] = "TimeoutError: Request timed out."
+        except HTTPError as http_error:
+            update["libraries"] = f"HTTPError: Generic HTTP Error happened {http_error}"
         return update
 
 async def async_setup(hass: HomeAssistant, config: Config) -> bool:

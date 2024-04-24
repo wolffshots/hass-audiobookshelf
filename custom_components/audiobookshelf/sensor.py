@@ -18,16 +18,16 @@ async def async_setup_entry(
 ) -> None:
     """Setup sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_devices([AudiobookshelfSensor(coordinator, entry)])
+    async_add_devices([AudiobookshelfSessionsSensor(coordinator, entry)])
 
 
-class AudiobookshelfSensor(AudiobookshelfEntity):
-    """audiobookshelf Sensor class."""
+class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
+    """audiobookshelf Sessions Sensor class."""
 
     @property
     def name(self) -> str:
         """Return the name of the sensor."""
-        return f"{DOMAIN}_sessions"
+        return f"{DOMAIN} Sessions"
 
     @property
     def state(self) -> int | None:
@@ -36,11 +36,51 @@ class AudiobookshelfSensor(AudiobookshelfEntity):
             coordinator_get = self.coordinator.data.get(
                 "sessions",
                 "",
-            )  # need to work out how to add functionality to the coordinator to fetch /api/users
+            )
             _LOGGER.debug("""sensor coordinator got: %s""", coordinator_get)
 
             if isinstance(coordinator_get, int):
                 return coordinator_get
+
+            return None
+
+        except AttributeError:
+            _LOGGER.debug(
+                "sensor: AttributeError caught while accessing coordinator data.",
+            )
+            return None
+
+    @property
+    def icon(self) -> str:
+        """Return the icon of the sensor."""
+        return "mdi:format-quote-close"
+
+    @property
+    def device_class(self) -> str:
+        """Return device class of the sensor."""
+        return "audiobookshelf__custom_device_class"
+
+class AudiobookshelfNumberOfLibrariesSensor(AudiobookshelfEntity):
+    """audiobookshelf Number of Libraries Sensor class."""
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return f"{DOMAIN} Number of Libraries"
+
+    @property
+    def state(self) -> int | None:
+        """Return the state of the sensor."""
+        try:
+            coordinator_get: dict | str = self.coordinator.data.get(
+                "libraries",
+                "",
+            )
+            _LOGGER.debug("""sensor coordinator got: %s""", coordinator_get)
+
+            if not isinstance(coordinator_get, str):
+                # count and return int
+                return len(coordinator_get["libraries"])
 
             return None
 
