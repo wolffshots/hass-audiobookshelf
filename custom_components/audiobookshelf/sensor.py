@@ -30,7 +30,7 @@ class AudiobookshelfSessionsSensor(AudiobookshelfEntity):
     _attr_name = f"{DOMAIN} Sessions"
     _attr_device_class = f"{DOMAIN}__custom_device_class"
     _attr_icon ="mdi:format-quote-close"
-    entity_id = f"{DOMAIN}_sessions"
+    entity_id = f"sensor.{DOMAIN}_sessions"
 
     @property
     def state(self) -> int | None:
@@ -59,7 +59,7 @@ class AudiobookshelfNumberOfLibrariesSensor(AudiobookshelfEntity):
     _attr_name = f"{DOMAIN} Libraries"
     _attr_device_class = f"{DOMAIN}__custom_device_class"
     _attr_icon ="mdi:format-quote-close"
-    entity_id = f"{DOMAIN}_libraries"
+    entity_id = f"sensor.{DOMAIN}_libraries"
 
     @property
     def state(self) -> int | None:

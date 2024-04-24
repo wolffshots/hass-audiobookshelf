@@ -28,7 +28,7 @@ class AudiobookshelfBinarySensor(AudiobookshelfEntity, BinarySensorEntity):
     _attr_name = f"{DOMAIN} Connected"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
     _attr_icon ="mdi:format-quote-close"
-    entity_id = f"{DOMAIN}_connected"
+    entity_id = f"binary_sensor.{DOMAIN}_connected"
 
     @property
     def is_on(self) -> bool:
