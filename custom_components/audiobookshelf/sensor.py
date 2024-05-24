@@ -16,7 +16,6 @@ from homeassistant.core import HomeAssistant
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "audiobookshelf"
-SCAN_INTERVAL = timedelta(seconds=10)
 
 async def count_active_users(data: dict) -> int:
     """
