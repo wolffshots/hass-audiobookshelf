@@ -59,10 +59,10 @@ async def extract_library_details(data: dict) -> dict:
 
 def get_total_duration(total_duration: float):
     """Calculate the total duration in hours and round it to 0 decimal places."""
-    return round(total_duration / 60 / 60, 0)
+    return round(total_duration / 60.0 / 60.0, 0)
 
 def get_total_size(total_size: float):
-    return round(total_size / 1024 / 1024 / 1024, 2)
+    return round(total_size / 1024.0 / 1024.0 / 1024.0, 2)
 
 async def fetch_library_stats(session, id):
     """Fetch data from a single endpoint."""
