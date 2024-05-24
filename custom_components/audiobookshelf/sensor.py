@@ -195,6 +195,18 @@ sensors: dict[str, Sensor] = {
 async def async_setup_platform(hass: HomeAssistant, config, async_add_entities, discovery_info=None):
     """Set up the sensor platform."""
 
+    conf = hass.data.get(DOMAIN)
+    if conf is None:
+        _LOGGER.error("Configuration not found in hass.data")
+        return
+
+    global API_URL
+    API_URL = conf["api_url"]
+    global API_KEY
+    API_KEY = conf["api_key"]
+    global SCAN_INTERVAL
+    SCAN_INTERVAL = timedelta(seconds=conf["scan_interval"])
+
     coordinator = AudiobookshelfDataUpdateCoordinator(hass)
     await coordinator.async_config_entry_first_refresh()
 

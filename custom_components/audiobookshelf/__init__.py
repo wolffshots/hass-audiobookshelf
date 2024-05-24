@@ -1,32 +1,44 @@
 """Custom component for Audiobookshelf."""
 import logging
-from homeassistant.helpers import discovery
-# from .sensor import async_refresh_libraries
+import voluptuous as vol
+from homeassistant.helpers import config_validation as cv, discovery
 
 DOMAIN = "audiobookshelf"
 
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Required("api_key"): cv.string,
+                vol.Required("api_url"): cv.string,
+                vol.Optional("scan_interval", default=300): cv.positive_int
+            }
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
 _LOGGER = logging.getLogger(__name__)
-
-# async def async_setup(hass, config):
-#     """Set up the Audiobookshelf component."""
-#     # Schedule the setup of sensor platform
-#     hass.async_create_task(discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config))
-#     hass.async_create_task(async_refresh_libraries(hass))
-
-#     return True
 
 async def async_setup(hass, config):
     """Set up the Audiobookshelf component."""
-    # Schedule the setup of sensor platform
+    conf = config.get(DOMAIN)
+    if conf is None:
+        _LOGGER.error(f"No config found for {DOMAIN}!")
+        return True
+    api_key = conf["api_key"]
+    api_url = conf["api_url"]
+    scan_interval = conf["scan_interval"]
+
+    _LOGGER.info("API URL: %s", api_url)
+    _LOGGER.info("Scan Interval: %s", scan_interval)
+
+    hass.data[DOMAIN] = {
+        "api_key": api_key,
+        "api_url": api_url,
+        "scan_interval": scan_interval
+    }
+    # Schedule the setup of sensor platform if needed
     hass.async_create_task(discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config))
-
-    # Use a helper to get the async_add_entities function from the sensor platform setup
-    # async def platform_setup():
-    #     """Wait for platform to be set up and then start refreshing libraries."""
-    #     platform = hass.data.get('sensor_platform')
-    #     if platform:
-    #         await async_refresh_libraries(hass, platform.async_add_entities)
-
-    # hass.async_create_task(platform_setup())
 
     return True
