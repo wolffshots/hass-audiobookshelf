@@ -1,160 +1,44 @@
-"""Init for audiobookshelf integration"""
-
-import asyncio
+"""Custom component for Audiobookshelf."""
 import logging
+import voluptuous as vol
+from homeassistant.helpers import config_validation as cv, discovery
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Config, HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from requests import HTTPError, Timeout
+DOMAIN = "audiobookshelf"
 
-from custom_components.audiobookshelf.api import AudiobookshelfApiClient
-
-from .const import (
-    CONF_ACCESS_TOKEN,
-    CONF_HOST,
-    DOMAIN,
-    ISSUE_URL,
-    PLATFORMS,
-    SCAN_INTERVAL,
-    VERSION,
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Required("api_key"): cv.string,
+                vol.Required("api_url"): cv.string,
+                vol.Optional("scan_interval", default=300): cv.positive_int
+            }
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
 )
 
-_LOGGER: logging.Logger = logging.getLogger(__package__)
+_LOGGER = logging.getLogger(__name__)
 
+async def async_setup(hass, config):
+    """Set up the Audiobookshelf component."""
+    conf = config.get(DOMAIN)
+    if conf is None:
+        _LOGGER.error(f"No config found for {DOMAIN}!")
+        return True
+    api_key = conf["api_key"]
+    api_url = conf["api_url"]
+    scan_interval = conf["scan_interval"]
 
-class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from the API."""
+    _LOGGER.info("API URL: %s", api_url)
+    _LOGGER.info("Scan Interval: %s", scan_interval)
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        client: AudiobookshelfApiClient,
-    ) -> None:
-        """Initialize."""
-        self.api = client
-        self.platforms = []
+    hass.data[DOMAIN] = {
+        "api_key": api_key,
+        "api_url": api_url,
+        "scan_interval": scan_interval
+    }
+    # Schedule the setup of sensor platform if needed
+    hass.async_create_task(discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config))
 
-        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
-
-    async def _async_update_data(self) -> dict[str, None]:
-        """Update data via library."""
-        update = {"connectivity": None, "users": None, "sessions": None}
-        try:
-            connectivity_update = await self.api.api_wrapper(
-                method="get",
-                url=self.api.get_host() + "/ping",
-            )
-            _LOGGER.debug(
-                """async_update connectivity_update: %s""",
-                connectivity_update,
-            )
-            update["connectivity"] = connectivity_update
-        except ConnectionError:
-            update["connectivity"] = "ConnectionError: Unable to connect."
-        except (TimeoutError, Timeout):
-            update["connectivity"] = "TimeoutError: Request timed out."
-        except HTTPError as http_error:
-            update["connectivity"] = f"HTTPError: Generic HTTP Error happened {http_error}"
-        try:
-            users_update = await self.api.api_wrapper(
-                method="get",
-                url=self.api.get_host() + "/api/users",
-            )
-            num_users = self.api.count_active_users(users_update)
-            _LOGGER.debug("""async_update num_users: %s""", num_users)
-            update["users"] = num_users
-        except ConnectionError:
-            update["users"] = "ConnectionError: Unable to connect."
-        except (TimeoutError, Timeout):
-            update["users"] = "TimeoutError: Request timed out."
-        except HTTPError as http_error:
-            update["users"] = f"HTTPError: Generic HTTP Error happened {http_error}"
-        try:
-            online_users_update = await self.api.api_wrapper(
-                method="get",
-                url=self.api.get_host() + "/api/users/online",
-            )
-            open_sessions = self.api.count_open_sessions(online_users_update)
-            _LOGGER.debug("""async_update open_sessions: %s""", open_sessions)
-            update["sessions"] = open_sessions
-        except ConnectionError:
-            update["sessions"] = "ConnectionError: Unable to connect."
-        except (TimeoutError, Timeout):
-            update["sessions"] = "TimeoutError: Request timed out."
-        except HTTPError as http_error:
-            update["sessions"] = f"HTTPError: Generic HTTP Error happened {http_error}"
-        return update
-
-async def async_setup(hass: HomeAssistant, config: Config) -> bool:
-    """Setting up this integration using YAML is not supported."""
     return True
-
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-) -> bool:
-    """Set up this integration using UI."""
-    if hass.data.get(DOMAIN) is None:
-        hass.data.setdefault(DOMAIN, {})
-        _LOGGER.info(
-            """
-            -------------------------------------------------------------------
-            Audiobookshelf
-            Version: %s
-            This is a custom integration!
-            If you have any issues with this you need to open an issue here:
-            %s
-            -------------------------------------------------------------------
-            """,
-            VERSION,
-            ISSUE_URL,
-        )
-
-    host = entry.data.get(CONF_HOST)
-    access_token = entry.data.get(CONF_ACCESS_TOKEN)
-
-    session = async_get_clientsession(hass)
-    client = AudiobookshelfApiClient(host, access_token, session)
-
-    coordinator = AudiobookshelfDataUpdateCoordinator(hass=hass, client=client)
-    await coordinator.async_refresh()
-
-    if not coordinator.last_update_success:
-        raise ConfigEntryNotReady
-
-    hass.data[DOMAIN][entry.entry_id] = coordinator
-
-    for platform in PLATFORMS:
-        if entry.options.get(platform, True):
-            coordinator.platforms.append(platform)
-            hass.async_create_task(
-                hass.config_entries.async_forward_entry_setup(entry, platform),
-            )
-    entry.add_update_listener(async_reload_entry)
-    return True
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Handle removal of an entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-    unloaded = all(
-        await asyncio.gather(
-            *[
-                hass.config_entries.async_forward_entry_unload(entry, platform)
-                for platform in PLATFORMS
-                if platform in coordinator.platforms
-            ],
-        ),
-    )
-    if unloaded:
-        hass.data[DOMAIN].pop(entry.entry_id)
-
-    return unloaded
-
-async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload config entry."""
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)
