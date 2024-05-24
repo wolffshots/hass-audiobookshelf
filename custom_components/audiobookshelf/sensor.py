@@ -147,51 +147,6 @@ sensors: dict[str, Sensor] = {
     },
 }
 
-# async def fetch_libraries():
-#     headers = {"Authorization": f"Bearer {API_KEY}"}
-#     async with aiohttp.ClientSession() as session:
-#         async with session.get(f"{API_URL}/api/libraries", headers=headers) as response:
-#             return await response.json()
-
-# async def async_remove_sensors(hass: HomeAssistant, entity_type, sensor_type: str):
-#     """Remove all existing sensors of a specific type."""
-#     entity_registry: EntityRegistry = async_get_entity_registry(hass)
-
-#     entities_to_remove = []
-
-#     for entity in entity_registry.entities.values():
-#         if entity.domain == entity_type:
-#             state = hass.states.get(entity.entity_id)
-#             if state and state.attributes.get("sensor_type") == sensor_type:
-#                 entities_to_remove.append(entity.entity_id)
-
-# async def async_refresh_libraries(hass: HomeAssistant, async_add_entities):
-#     """Periodically refresh the sensors."""
-#     while True:
-#         _LOGGER.error("Refreshing Audiobookshelf library stats")
-#         libraries_data = await fetch_libraries()
-#         # remove and re-add library sensors
-#         await async_remove_sensors(hass, "sensor", "audiobookshelf_library")
-#         coordinator = AudiobookshelfDataUpdateCoordinator(hass)
-#         await coordinator.async_config_entry_first_refresh()
-
-#         ids = get_library_ids(libraries_data)
-#         entities = []
-#         for id in ids:
-#             entities.append(
-#                 AudiobookshelfSensor(
-#                     coordinator, {
-#                         "endpoint": f"api/libraries/{id}/stats", 
-#                         "name": f"Audiobookshelf Library {id}", 
-#                         "data_function": do_nothing,
-#                         "attributes_function": do_nothing,
-#                         "type": "audiobookshelf_library"
-#                     },
-#                 )
-#             )
-#         async_add_entities(entities, True)
-#         await asyncio.sleep(60)  # Wait for 1 minute before refreshing again
-
 async def async_setup_platform(hass: HomeAssistant, config, async_add_entities, discovery_info=None):
     """Set up the sensor platform."""
 
