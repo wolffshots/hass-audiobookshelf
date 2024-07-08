@@ -1,12 +1,12 @@
 {
   "domain": "audiobookshelf",
   "name": "Audiobookshelf",
-  "codeowners": ["@wolffshots"],
-  "config_flow": true,
-  "dependencies": [],
+  "version": "0.1.1",
   "documentation": "https://github.com/wolffshots/hass-audiobookshelf",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/wolffshots/hass-audiobookshelf/issues",
-  "requirements": [],
-  "version": "v0.0.6"
+  "dependencies": [],
+  "requirements": ["aiohttp"],
+  "codeowners": ["@wolffshots"],
+  "integration_type": "device"
 }
