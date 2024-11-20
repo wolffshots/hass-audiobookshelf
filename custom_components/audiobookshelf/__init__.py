@@ -1,17 +1,23 @@
 """Custom component for Audiobookshelf."""
-import logging
-import voluptuous as vol
-from homeassistant.helpers import config_validation as cv, discovery
 
-DOMAIN = "audiobookshelf"
+import logging
+
+import voluptuous as vol
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
+
+from .const import DOMAIN, PLATFORMS
 
 CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: vol.Schema(
             {
-                vol.Required("api_key"): cv.string,
-                vol.Required("api_url"): cv.string,
-                vol.Optional("scan_interval", default=300): cv.positive_int,
+                vol.Required(CONF_API_KEY): cv.string,
+                vol.Required(CONF_URL): cv.string,
+                vol.Optional(CONF_SCAN_INTERVAL, default=300): cv.positive_int,
             }
         )
     },
@@ -21,27 +27,27 @@ CONFIG_SCHEMA = vol.Schema(
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup(hass, config):
-    """Set up the Audiobookshelf component."""
-    conf = config.get(DOMAIN)
-    if conf is None:
-        _LOGGER.error(f"No config found for {DOMAIN}!")
-        return True
-    api_key = conf["api_key"]
-    api_url = conf["api_url"]
-    scan_interval = conf["scan_interval"]
+def clean_config(data: dict) -> dict:
+    """Remove the api key from config."""
+    if bool(data[CONF_API_KEY]):
+        data[CONF_API_KEY] = "<redacted>"
+    return data
 
-    _LOGGER.info("API URL: %s", api_url)
-    _LOGGER.info("Scan Interval: %s", scan_interval)
 
-    hass.data[DOMAIN] = {
-        "api_key": api_key,
-        "api_url": api_url,
-        "scan_interval": scan_interval,
-    }
-    # Schedule the setup of sensor platform if needed
-    hass.async_create_task(
-        discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Audiobookshelf from a config entry."""
+    if entry.data is None:
+        error_message = "Configuration not found"
+        raise ConfigEntryNotReady(error_message)
+
+    _LOGGER.debug(
+        "Setting up Audiobookshelf with config: %s", clean_config(entry.data.copy())
     )
 
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

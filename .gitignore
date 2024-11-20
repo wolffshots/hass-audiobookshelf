@@ -164,3 +164,7 @@ cython_debug/
 test
 
 test_creds.py
+
+# Home Assistant configuration
+config/*
+!config/configuration.yaml
