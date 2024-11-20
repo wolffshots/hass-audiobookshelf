@@ -11,7 +11,7 @@ CONFIG_SCHEMA = vol.Schema(
             {
                 vol.Required("api_key"): cv.string,
                 vol.Required("api_url"): cv.string,
-                vol.Optional("scan_interval", default=300): cv.positive_int
+                vol.Optional("scan_interval", default=300): cv.positive_int,
             }
         )
     },
@@ -19,6 +19,7 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup(hass, config):
     """Set up the Audiobookshelf component."""
@@ -36,9 +37,11 @@ async def async_setup(hass, config):
     hass.data[DOMAIN] = {
         "api_key": api_key,
         "api_url": api_url,
-        "scan_interval": scan_interval
+        "scan_interval": scan_interval,
     }
     # Schedule the setup of sensor platform if needed
-    hass.async_create_task(discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config))
+    hass.async_create_task(
+        discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
+    )
 
     return True
