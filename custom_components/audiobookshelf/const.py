@@ -2,7 +2,7 @@
 
 from homeassistant.const import Platform
 
-VERSION = "v0.2.0"
+VERSION = "v0.2.1"
 ISSUE_URL = "https://github.com/wolffshots/hass-audiobookshelf/issues"
 DOMAIN = "audiobookshelf"
 PLATFORMS: list[Platform] = [Platform.SENSOR]
