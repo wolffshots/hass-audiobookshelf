@@ -9,7 +9,7 @@ on:
       - '**.py'
 
 jobs:
-  ruff:
+  lint:
     name: "Lint"
     runs-on: "ubuntu-latest"
     steps:

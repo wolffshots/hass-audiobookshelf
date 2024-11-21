@@ -9,8 +9,8 @@ on:
       - '**.py'
 
 jobs:
-  ruff:
-    name: "Ruff"
+  test:
+    name: "Test"
     runs-on: "ubuntu-latest"
     steps:
         - name: "Checkout the repository"
