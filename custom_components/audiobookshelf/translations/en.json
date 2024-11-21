@@ -30,15 +30,23 @@
             "audiobookshelf_users": {
                 "name": "Users",
                 "state_attributes": {
-                    "active_users": "Active Users",
-                    "total_users": "Total Users"
+                    "active_users": {
+                        "name": "Active Users"
+                    },
+                    "total_users": {
+                        "name": "Total Users"
+                    }
                 }
             },
             "audiobookshelf_libraries": {
                 "name": "Libraries",
                 "state_attributes": {
-                    "total_items": "Total Items",
-                    "total_duration": "Total Duration"
+                    "total_duration": {
+                        "name": "Total Duration"
+                    },
+                    "total_items": {
+                        "name": "Total Items"
+                    }
                 }
             }
         }

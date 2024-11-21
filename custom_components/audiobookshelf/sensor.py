@@ -31,8 +31,6 @@ def count_active_users(data: dict) -> int:
     count = 0
     for user in data["users"]:
         if user["isActive"] and user["username"] != "hass":
-            if "token" in user and user["token"] == API_KEY:
-                continue  # Skip user with provided access_token
             count += 1
     return count
 
@@ -131,20 +129,17 @@ async def async_setup_entry(
 
     _LOGGER.debug("Configuration data: %s", clean_config(conf.copy()))
 
-    global API_URL, API_KEY, SCAN_INTERVAL  # noqa: PLW0603
-    API_URL = conf[CONF_URL]
-    API_KEY = conf[CONF_API_KEY]
-    SCAN_INTERVAL = timedelta(seconds=conf[CONF_SCAN_INTERVAL])
-
     async with aiohttp.ClientSession() as session:
-        headers = {"Authorization": f"Bearer {API_KEY}"}
-        async with session.get(f"{API_URL}/api/libraries", headers=headers) as response:
+        headers = {"Authorization": f"Bearer {conf[CONF_API_KEY]}"}
+        async with session.get(
+            f"{conf[CONF_URL]}/api/libraries", headers=headers
+        ) as response:
             if response.status != HTTP_OK:
                 msg = f"Failed to connect to API: {response.status}"
                 _LOGGER.error("%s", msg)
                 raise ConfigEntryNotReady(msg)
 
-    coordinator = AudiobookshelfDataUpdateCoordinator(hass)
+    coordinator = AudiobookshelfDataUpdateCoordinator(hass, entry)
 
     libraries: list[Library] = await coordinator.get_libraries()
     coordinator.generate_library_sensors(libraries)
@@ -238,21 +233,27 @@ def camel_to_snake(data: dict[str, Any] | list[Any]) -> dict[str, Any] | list[An
 class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Audiobookshelf data from the API."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize."""
+        self.config_entry = config_entry
+        self.conf = self.config_entry.data
+        if self.config_entry is None:
+            msg = "Config is none on coordinator"
+            raise ConfigEntryNotReady(msg)
+
         super().__init__(
             hass,
             _LOGGER,
             name="audiobookshelf",
-            update_interval=SCAN_INTERVAL,
+            update_interval=timedelta(seconds=self.conf[CONF_SCAN_INTERVAL]),
         )
 
     async def get_libraries(self) -> list[Library]:
         """Fetch library id list from API."""
         async with aiohttp.ClientSession() as session:
-            headers = {"Authorization": f"Bearer {API_KEY}"}
+            headers = {"Authorization": f"Bearer {self.conf[CONF_API_KEY]}"}
             async with session.get(
-                f"{API_URL}/api/libraries", headers=headers
+                f"{self.conf[CONF_URL]}/api/libraries", headers=headers
             ) as response:
                 if response.status == HTTP_OK:
                     data: dict[str, Any] = await response.json()
@@ -306,7 +307,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict:
         """Fetch data from API endpoint."""
-        headers = {"Authorization": f"Bearer {API_KEY}"}
+        headers = {"Authorization": f"Bearer {self.conf[CONF_API_KEY]}"}
         data = {}
         try:
             async with aiohttp.ClientSession() as session:
@@ -319,7 +320,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 for endppoint in unique_endpoints:
                     async with session.get(
-                        f"{API_URL}/{endppoint}", headers=headers
+                        f"{self.conf[CONF_URL]}/{endppoint}", headers=headers
                     ) as response:
                         if response.status != HTTP_OK:
                             error_message = f"Error fetching data: {response.status}"
@@ -327,7 +328,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
                         data[endppoint] = await response.json()
                     _LOGGER.debug(
                         "Data returns for %s",
-                        f"{API_URL}/{endppoint}",
+                        f"{self.conf[CONF_URL]}/{endppoint}",
                     )
             return data  # noqa: TRY300
         except aiohttp.ClientError as err:
@@ -351,6 +352,7 @@ class AudiobookshelfSensor(RestoreEntity, Entity):
         self._attr_extra_state_attributes = {}
         self._process_data = sensor["data_function"]
         self._process_attributes = sensor["attributes_function"]
+        self.conf = self.coordinator.conf
 
     async def async_added_to_hass(self) -> None:
         """Call when entity is added to hass."""
@@ -382,18 +384,18 @@ class AudiobookshelfSensor(RestoreEntity, Entity):
     def device_info(self) -> DeviceInfo | None:
         """Return device information about this entity."""
         return {
-            "identifiers": {(DOMAIN, API_URL)},
+            "identifiers": {(DOMAIN, self.conf[CONF_URL])},
             "name": "Audiobookshelf",
             "manufacturer": "advplyr",
             "sw_version": VERSION,
-            "configuration_url": API_URL,
+            "configuration_url": self.conf[CONF_URL],
         }
 
     @property
     def unique_id(self) -> str:
         """Return a unique ID."""
         # Create unique IDs for each sensor that include the API URL
-        return f"{API_URL}_{self._endpoint}_{self._name}"
+        return f"{self.conf[CONF_URL]}_{self._endpoint}_{self._name}"
 
     async def async_update(self) -> None:
         """Fetch new state data for the sensor."""

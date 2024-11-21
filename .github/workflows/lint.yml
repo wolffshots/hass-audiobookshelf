@@ -10,7 +10,7 @@ on:
 
 jobs:
   ruff:
-    name: "Ruff"
+    name: "Lint"
     runs-on: "ubuntu-latest"
     steps:
         - name: "Checkout the repository"
