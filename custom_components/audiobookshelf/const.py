@@ -1,19 +1,10 @@
-"""Constant for the Audiobookshelf integration"""
+"""Constants for the Audiobookshelf integration."""
 
-# Base component constants
-from datetime import timedelta
+from homeassistant.const import Platform
 
-NAME = "Audiobookshelf"
-DOMAIN = "audiobookshelf"
-DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "v0.0.6"
-
-ATTRIBUTION = "Server by https://www.audiobookshelf.org/"
+VERSION = "v0.2.2"
 ISSUE_URL = "https://github.com/wolffshots/hass-audiobookshelf/issues"
-
-SCAN_INTERVAL = timedelta(seconds=30)
-
-CONF_ACCESS_TOKEN = "access_token"
-CONF_HOST = "host"
-
-PLATFORMS = ["binary_sensor", "sensor"]
+DOMAIN = "audiobookshelf"
+PLATFORMS: list[Platform] = [Platform.SENSOR]
+HTTP_OK = 200
+HTTP_AUTH_FAILURE = 401

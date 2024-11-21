@@ -1,143 +1,110 @@
-"""Adds config flow for Audiobookshelf."""
+"""Config flow for Audiobookshelf integration."""
+
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import aiohttp
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
 
-from .api import AudiobookshelfApiClient
-from .const import CONF_ACCESS_TOKEN, CONF_HOST, DOMAIN, PLATFORMS
+from .const import DOMAIN, HTTP_AUTH_FAILURE, HTTP_OK
 
-_LOGGER: logging.Logger = logging.getLogger(__package__)
+_LOGGER = logging.getLogger(__name__)
 
 
-class AudiobookshelfFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for audiobookshelf."""
+def validate_config(data: dict[str, str]) -> dict:
+    """Validate the config entries."""
+    errors = {}
+    if not bool(data[CONF_API_KEY]):
+        errors[CONF_API_KEY] = "api_key_invalid"
+    if not bool(data[CONF_URL]):
+        errors[CONF_URL] = "url_invalid"
+    if not data[CONF_URL].startswith(("http://", "https://")):
+        errors[CONF_URL] = "url_protocol_missing"
+    if not bool(data[CONF_SCAN_INTERVAL]):
+        errors[CONF_SCAN_INTERVAL] = "scan_interval_invalid"
+    return errors
+
+
+async def verify_config(data: dict) -> dict:
+    """Verify the configuration by testing the API connection."""
+    async with aiohttp.ClientSession() as session:
+        headers = {"Authorization": f"Bearer {data[CONF_API_KEY]}"}
+        try:
+            async with session.get(
+                f"{data[CONF_URL]}/api/libraries",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(5),
+            ) as response:
+                if response.status != HTTP_OK:
+                    msg = f"Failed to connect to API: {response.status}"
+                    _LOGGER.error("%s", msg)
+                    if response.status == HTTP_AUTH_FAILURE:
+                        return {"base": "api_auth_error"}
+                    return {"base": "api_other_error"}
+                return {}
+        except TimeoutError:
+            return {"base": "api_timeout_error"}
+        except aiohttp.ClientConnectorError:
+            return {"base": "api_client_connector_error"}
+
+
+class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Audiobookshelf."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
-
-    def __init__(self) -> None:
-        """Initialize."""
-        self._errors = {}
 
     async def async_step_user(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> FlowResult:
-        """Handle a flow initialized by the user."""
-        self._errors = {}
-
-        # Uncomment the next 2 lines if only a single instance of the integration is allowed:
-        # if self._async_current_entries():
-        #     return self.async_abort(reason="single_instance_allowed")
+        self, user_input: dict[str, str] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle the user step."""
+        errors = {}
 
         if user_input is not None:
-            valid = await self._test_credentials(
-                user_input[CONF_HOST],
-                user_input[CONF_ACCESS_TOKEN],
-            )
-            if valid:
-                return self.async_create_entry(
-                    title=user_input[CONF_HOST],
-                    data=user_input,
+            errors.update(validate_config(user_input))
+            if not errors:
+                errors.update(await verify_config(user_input))
+            if errors:
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_URL, default=user_input.get(CONF_URL, "")
+                            ): str,
+                            vol.Required(
+                                CONF_API_KEY, default=user_input.get(CONF_API_KEY, "")
+                            ): str,
+                            vol.Optional(
+                                CONF_SCAN_INTERVAL,
+                                default=user_input.get(CONF_SCAN_INTERVAL, 300),
+                            ): cv.positive_int,
+                        }
+                    ),
+                    errors=errors,
                 )
-            self._errors["base"] = "auth"
 
-            return await self._show_config_form(user_input)
-
-        return await self._show_config_form(user_input)
-
-    @staticmethod
-    @callback
-    def async_get_options_flow(
-        config_entry: ConfigEntry,
-    ) -> AudiobookshelfOptionsFlowHandler:
-        return AudiobookshelfOptionsFlowHandler(config_entry)
-
-    async def _show_config_form(
-        self,
-        user_input: dict[str, Any] | None,  # pylint: disable=unused-argument
-    ) -> FlowResult:
-        """Show the configuration form to edit location data."""
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {vol.Required(CONF_HOST): str, vol.Required(CONF_ACCESS_TOKEN): str},
-            ),
-            errors=self._errors,
-        )
-
-    async def _test_credentials(
-        self,
-        host: str,
-        access_token: str,
-    ) -> bool:
-        """Return true if credentials is valid."""
-        try:
-            session = async_create_clientsession(self.hass)
-            api = AudiobookshelfApiClient(host, access_token, session)
-            response = await api.api_wrapper(
-                method="get",
-                url=api.get_host() + "/api/users",
+            return self.async_create_entry(
+                title="Audiobookshelf",
+                data={
+                    CONF_URL: user_input[CONF_URL],
+                    CONF_API_KEY: user_input[CONF_API_KEY],
+                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, 300),
+                },
             )
-            _LOGGER.debug("""test_credentials response was: %s""", response)
-            if response:
-                return True
-            return False
-        except (ConnectionError, TimeoutError) as connection_or_timeout_error:
-            _LOGGER.debug("Connection or Timeout error: %s", connection_or_timeout_error)
-            return False
 
-        except aiohttp.ClientResponseError as client_response_error:
-            _LOGGER.debug("ClientResponse Error: %s - %s", client_response_error.status, client_response_error.message)
-            return False
-
-
-class AudiobookshelfOptionsFlowHandler(config_entries.OptionsFlow):
-    """Config flow options handler for audiobookshelf."""
-
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize HACS options flow."""
-        self.config_entry = config_entry
-        self.options = dict(config_entry.options)
-
-    async def async_step_init(
-        self,
-        user_input: dict[str, Any] | None = None,  # pylint: disable=unused-argument
-    ) -> FlowResult:
-        """Manage the options."""
-        return await self.async_step_user()
-
-    async def async_step_user(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> FlowResult:
-        """Handle a flow initialized by the user."""
-        if user_input is not None:
-            self.options.update(user_input)
-            return await self._update_options()
-
+        # Show the form to the user
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required(x, default=self.options.get(x, True)): bool
-                    for x in sorted(PLATFORMS)
-                },
+                    vol.Required(CONF_URL): str,
+                    vol.Required(CONF_API_KEY): str,
+                    vol.Optional(CONF_SCAN_INTERVAL, default=300): cv.positive_int,
+                }
             ),
-        )
-
-    async def _update_options(self) -> FlowResult:
-        """Update config entry options."""
-        return self.async_create_entry(
-            title=self.config_entry.data.get(CONF_HOST),
-            data=self.options,
+            errors=errors,
         )

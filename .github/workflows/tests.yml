@@ -1,4 +1,4 @@
-name: Lint
+name: Test
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
       - '**.py'
 
 jobs:
-  lint:
-    name: "Lint"
+  test:
+    name: "Test"
     runs-on: "ubuntu-latest"
     steps:
         - name: "Checkout the repository"
@@ -25,11 +25,5 @@ jobs:
         - name: "Install requirements"
           run: python3 -m pip install -r requirements.txt
 
-        - name: "Lint"
-          run: python3 -m ruff check ./custom_components/audiobookshelf
-
-        - name: Run MyPy
-          run: python3 -m mypy custom_components/audiobookshelf
-
-        - name: "Format"
-          run: python3 -m ruff format ./custom_components/audiobookshelf --check
+        - name: Run tests
+          run: python3 -m pytest tests -W ignore::DeprecationWarning

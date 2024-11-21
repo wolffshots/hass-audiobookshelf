@@ -1,0 +1,8 @@
+colorlog==6.9.0
+homeassistant==2024.11.2
+pip>=21.3.1
+ruff==0.7.2
+mypy==1.13.0
+pytest==8.3.3
+libpcap>=1.11.0b14
+dacite==1.8.1

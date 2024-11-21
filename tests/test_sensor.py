@@ -1,115 +1,188 @@
-"""Tests for Audiobookshelf sensor."""
-from unittest.mock import Mock, patch
+"""
+Test module for the audiobookshelf sensor component.
 
-import pytest
-from _pytest.logging import LogCaptureFixture
-from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+This module contains test cases for the camel_to_snake function used in the
+audiobookshelf sensor component.
+"""
 
-from custom_components.audiobookshelf.const import (
-    DOMAIN,
-)
-from custom_components.audiobookshelf.sensor import (
-    AudiobookshelfSensor,
-    async_setup_entry,
-)
-
-from .const import MOCK_CONFIG
+from custom_components.audiobookshelf.sensor import camel_to_snake
 
 
-@pytest.fixture(name="mock_coordinator")
-async def mock_coordinator_fixture() -> Mock:
-    """Mock a coordinator for testing."""
-    coordinator_mock = Mock()
-    coordinator_mock.data = {"sessions": 6}
-    mock_coordinator_fixture.last_update_success = True
-    return coordinator_mock
+def test_camel_to_snake_with_dict() -> None:
+    """
+    Test the camel_to_snake function with a dictionary input.
 
+    This test verifies that the camel_to_snake function correctly converts
+    dictionary keys from camelCase to snake_case format, including nested
+    dictionaries.
 
-@pytest.fixture(name="mock_coordinator_unknown")
-async def mock_coordinator_unknown_fixture() -> Mock:
-    """Mock a coordinator for testing."""
-    coordinator_mock = Mock()
-    coordinator_mock.data = {"sessions": "some other type"}
-    mock_coordinator_fixture.last_update_success = True
-    return coordinator_mock
+    The test data includes:
+    - A simple dictionary with a camelCase key
+    - A nested dictionary with camelCase keys at both levels
 
+    Expected behavior:
+    - All dictionary keys should be converted from camelCase to snake_case
+    - Dictionary values should remain unchanged
+    - The nested structure should be preserved
 
-@pytest.fixture(name="mock_coordinator_error")
-async def mock_coordinator_error_fixture() -> None:
-    """Mock a coordinator error for testing."""
-    with patch(
-        "custom_components.audiobookshelf.AudiobookshelfApiClient.api_wrapper",
-        side_effect=Exception,
-    ):
-        yield None
+    Returns:
+        None
 
+    Raises:
+        AssertionError: If the camel_to_snake function output doesn't match
+        expected output
 
-@pytest.mark.asyncio
-async def test_sensor_init_entry(
-    hass: HomeAssistant,
-    mock_coordinator: Mock,
-) -> None:
-    """Test the initialisation."""
-    entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="sensors")
-    m_add_entities = Mock()
-    m_device = AudiobookshelfSensor(
-        coordinator=mock_coordinator,
-        config_entry=entry,
-    )
-
-    hass.data[DOMAIN] = {
-        "sensors": {"audiobookshelf_sessions": m_device},
+    """
+    data = {
+        "camelCaseKey": "value",
+        "nestedCamelCase": {"innerCamelCaseKey": "innerValue"},
     }
-
-    await async_setup_entry(hass, entry, m_add_entities)
-    assert isinstance(
-        hass.data[DOMAIN]["sensors"]["audiobookshelf_sessions"],
-        AudiobookshelfSensor,
-    )
-    m_add_entities.assert_called_once()
+    expected = {
+        "camel_case_key": "value",
+        "nested_camel_case": {"inner_camel_case_key": "innerValue"},
+    }
+    assert camel_to_snake(data) == expected
 
 
-async def test_sensor_properties(mock_coordinator: Mock) -> None:
-    """Test that the sensor returns the correct properties"""
-    config_entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="sensors")
-    sensor = AudiobookshelfSensor(
-        coordinator=mock_coordinator,
-        config_entry=config_entry,
-    )
-    assert sensor.name == "audiobookshelf_sessions"
-    assert sensor.device_class == "audiobookshelf__custom_device_class"
-    assert sensor.icon == "mdi:format-quote-close"
-    assert sensor.state == 6
+def test_camel_to_snake_with_list_of_dicts() -> None:
+    """
+    Test the camel_to_snake function with a list of dictionaries.
+
+    This test verifies that the camel_to_snake function correctly converts
+    dictionary keys from camelCase to snake_case format, including nested
+    dictionaries.
+
+    The test data includes:
+    - A list of dictionaries with camelCase keys
+
+    Expected behavior:
+    - All dictionary keys should be converted from camelCase to snake_case
+    - Dictionary values should remain unchanged
+    - The nested structure should be preserved
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the camel_to_snake function output doesn't match
+        expected output
+
+    """
+    data = [{"camelCaseKey": "value"}, {"anotherCamelCaseKey": "anotherValue"}]
+    expected = [{"camel_case_key": "value"}, {"another_camel_case_key": "anotherValue"}]
+    assert camel_to_snake(data) == expected
 
 
-async def test_sensor_unknown(mock_coordinator_unknown: Mock) -> None:
-    """Test that the sensor returns the correct properties"""
-    config_entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="sensors")
-    sensor = AudiobookshelfSensor(
-        coordinator=mock_coordinator_unknown,
-        config_entry=config_entry,
-    )
-    assert sensor.state is None
+def test_camel_to_snake_with_mixed_list() -> None:
+    """
+    Test the camel_to_snake function with a mixed list input.
+
+    This test verifies that the camel_to_snake function correctly handles a complex
+    nested structure containing both dictionaries and lists, where dictionary keys
+    need to be converted from camelCase to snake_case format.
+
+    The test data includes:
+    - A dictionary with a camelCase key
+    - A nested list containing a string and another dictionary with a camelCase key
+
+    Expected behavior:
+    - Dictionary keys should be converted from camelCase to snake_case
+    - List items that are strings should remain unchanged
+    - The structure of the input should be preserved
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the camel_to_snake function output doesn't match
+        expected output
+
+    """
+    data = [
+        {"camelCaseKey": "value"},
+        ["nestedListCamelCase", {"innerCamelCaseKey": "innerValue"}],
+    ]
+    expected = [
+        {"camel_case_key": "value"},
+        ["nestedListCamelCase", {"inner_camel_case_key": "innerValue"}],
+    ]
+    assert camel_to_snake(data) == expected
 
 
-async def test_sensor_error(
-    mock_coordinator_error: Mock,
-    caplog: LogCaptureFixture,
-) -> None:
-    """Test for exception handling on exception on coordinator"""
-    caplog.clear()
-    config_entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="sensors")
-    sensor = AudiobookshelfSensor(
-        coordinator=mock_coordinator_error,
-        config_entry=config_entry,
-    )
-    assert sensor.name == "audiobookshelf_sessions"
-    assert sensor.device_class == "audiobookshelf__custom_device_class"
-    assert sensor.icon == "mdi:format-quote-close"
-    assert sensor.state is None
-    assert len(caplog.record_tuples) == 1
-    assert (
-        "AttributeError caught while accessing coordinator data."
-        in caplog.record_tuples[0][2]
-    )
+def test_camel_to_snake_with_empty_dict() -> None:
+    """
+    Test the camel_to_snake function with an empty dictionary.
+
+    This test verifies that the camel_to_snake function correctly handles
+    empty dictionaries.
+
+    The test data includes:
+    - Empty dictionary
+
+    Expected behavior:
+    - Empty dictionary should be unchanged
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the camel_to_snake function output doesn't match
+        expected output
+
+    """
+    data = {}
+    expected = {}
+    assert camel_to_snake(data) == expected
+
+
+def test_camel_to_snake_with_empty_list() -> None:
+    """
+    Test the camel_to_snake function with an empty list.
+
+    This test verifies that the camel_to_snake function correctly handles
+    empty lists.
+
+    The test data includes:
+    - Empty list
+
+    Expected behavior:
+    - Empty list should be unchanged
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the camel_to_snake function output doesn't match
+        expected output
+
+    """
+    data = []
+    expected = []
+    assert camel_to_snake(data) == expected
+
+
+def test_camel_to_snake_with_non_camel_case() -> None:
+    """
+    Test the camel_to_snake function with dictionary with mixed keys.
+
+    This test verifies that the camel_to_snake function correctly handles
+    already snake_case keys alongside camelCase keys.
+
+    The test data includes:
+    - Simple dictionary with camelCase and snake_case
+
+    Expected behavior:
+    - snake_case keys should be unchanged
+    - camelCase keys should be updated
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the camel_to_snake function output doesn't match
+        expected output
+
+    """
+    data = {"snake_case_key": "value", "PascalCaseKey": "value"}
+    expected = {"snake_case_key": "value", "pascal_case_key": "value"}
+    assert camel_to_snake(data) == expected

@@ -2,32 +2,65 @@
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE)
 
-[![pre-commit][pre-commit-shield]][pre-commit]
-[![Black][black-shield]][black]
-
 [![hacs][hacsbadge]][hacs]
 [![Project Maintenance][maintenance-shield]][user_profile]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 
-**This component will set up the following platforms.**
+## This component will set up the following general sensors:
 
-| Entity                         | Description                          |
-| ------------------------------ | ------------------------------------ |
-| `binary_sensor`:`connectivity` | Show whether the server is connected |
-| `sensor`:`open_sessions`       | Show number of open audio sessions   |
+| Entity          |       Type       | Description                          |
+| --------------- | ---------------- | ------------------------------------ |
+| `open_sessions` | `sensor`         | Show number of open audio sessions   |
+| `libraries`     | `sensor`         | Number of libraries on the server    |
+| `users`         | `sensor`         | Number of users on the server        |
+
+## It also adds the following library specific sensors (for each library that it finds during setup):
+| Entity             | Type           | Description                                              |
+| ------------------ | -------------- | -------------------------------------------------------- |
+| `items`            | `sensor`       | Number of items in the library                           |
+| `duration`         | `sensor`       | Total time in hours of playable content in library       |
+| `size`             | `sensor`       | Total disk space used by library in GB                   |
+
+## Examples
+
+![Example of sensors on device](docs/hass-audiobookshelf-example.png)
 
 {% if not installed %}
 
 ## Installation
 
-1. Click install.
-1. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Audiobookshelf".
+### Installation with HACS
+
+1. Make sure you have HACS fully set up (if you don't you can do so [here](https://hacs.xyz/docs/use/))
+2. Open up HACS in you Home Assistant instance and search for "Audiobookshelf" and add it
+3. Restart Home Assistant once it is installed
+4. In the Home Assistant UI go to "Configuration" -> "Integrations" click "+" and search for "Audiobookshelf"
+5. Click on "Audiobookshelf" and proceed to [Configuration](#configuration)
+
+### Manual installation
+
+1. Using the tool of choice open the directory (folder) for your Home Assistant configuration (where you find `configuration.yaml`)
+2. If you do not have a `custom_components` directory (folder) there, you need to create it
+3. Download the `Audiobookshelf_vX.X.X.zip` file from the [latest release](https://github.com/wolffshots/hass-audiobookshelf/releases/latest)
+4. Unzip the folder and place it into `custom_components`
+5. Restart Home Assistant
+6. In the Home Assistant UI go to "Configuration" -> "Integrations" click "+" and search for "Audiobookshelf"
+7. Click on "Audiobookshelf" and proceed to [Configuration](#configuration)
 
 {% endif %}
 
-## Configuration is done in the UI
+## Configuration
 
-![Config in UI](docs/hass-audiobookshelf-config.png)
+### Getting an access token
+
+1. Log in as the admin user
+2. Go to Settings > Users
+3. Click on the account
+4. Copy the API Token from beneath the user's name
+
+For more info on what the token can be used for see: https://api.audiobookshelf.org/#introduction
+
+### Setting up via the UI
 
 ## Credits
 
