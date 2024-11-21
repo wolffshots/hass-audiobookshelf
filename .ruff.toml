@@ -14,7 +14,7 @@ ignore = [
     "D212", # multi-line-summary-first-line (incompatible with formatter)
     "COM812", # incompatible with formatter
     "ISC001", # incompatible with formatter
-    "ERA001", commented code isn't always bad
+    "ERA001", # commented code isn't always bad
 ]
 
 [lint.flake8-pytest-style]
@@ -25,3 +25,6 @@ keep-runtime-typing = true
 
 [lint.mccabe]
 max-complexity = 25
+
+[lint.per-file-ignores]
+"tests/*.py" = ["S101"]

@@ -3,27 +3,27 @@
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, TypeVar
+from typing import Any
 
 import aiohttp
-from dacite import Config, from_dict
+from dacite import from_dict
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
 
 from custom_components.audiobookshelf import clean_config
+from custom_components.audiobookshelf.const import DOMAIN, HTTP_OK, VERSION
 
 _LOGGER = logging.getLogger(__name__)
-
-DOMAIN = "audiobookshelf"
-HTTP_OK = 200
 
 
 def count_active_users(data: dict) -> int:
@@ -138,17 +138,18 @@ async def async_setup_entry(
 
     async with aiohttp.ClientSession() as session:
         headers = {"Authorization": f"Bearer {API_KEY}"}
-        async with session.get(f"{API_URL}/api/users", headers=headers) as response:
+        async with session.get(f"{API_URL}/api/libraries", headers=headers) as response:
             if response.status != HTTP_OK:
                 msg = f"Failed to connect to API: {response.status}"
                 _LOGGER.error("%s", msg)
                 raise ConfigEntryNotReady(msg)
 
     coordinator = AudiobookshelfDataUpdateCoordinator(hass)
-    await coordinator.async_config_entry_first_refresh()
 
-    libraries = await coordinator.get_libraries()
+    libraries: list[Library] = await coordinator.get_libraries()
     coordinator.generate_library_sensors(libraries)
+
+    await coordinator.async_config_entry_first_refresh()
 
     entities = [
         AudiobookshelfSensor(coordinator, sensor) for sensor in sensors.values()
@@ -205,10 +206,7 @@ class Library:
     last_update: int | None
 
 
-T = TypeVar("T", dict, list)
-
-
-def camel_to_snake(data: T) -> T:
+def camel_to_snake(data: dict[str, Any] | list[Any]) -> dict[str, Any] | list[Any]:
     """Convert camelCase keys to snake_case."""
 
     def _convert_key(key: str) -> str:
@@ -248,7 +246,6 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             name="audiobookshelf",
             update_interval=SCAN_INTERVAL,
         )
-        self.libraries = {}
 
     async def get_libraries(self) -> list[Library]:
         """Fetch library id list from API."""
@@ -259,17 +256,12 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             ) as response:
                 if response.status == HTTP_OK:
                     data: dict[str, Any] = await response.json()
+                    for lib in data["libraries"]:
+                        _LOGGER.debug("Converting library: %s", lib)
                     return [
                         from_dict(
                             data_class=Library,
-                            data=(
-                                _LOGGER.debug("Converting library: %s", lib)
-                                or camel_to_snake(lib)
-                            ),
-                            config=Config(
-                                check_types=False,
-                                cast=[str, int],
-                            ),
+                            data=(dict(camel_to_snake(lib))),
                         )
                         for lib in data["libraries"]
                     ]
@@ -283,7 +275,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
                 {
                     f"{base_id}_size": {
                         "endpoint": f"api/libraries/{library.id}/stats",
-                        "name": f"{library.name} Size",
+                        "name": f"Audiobookshelf {library.name} Size",
                         "unique_id": f"{base_id}_size",
                         "data_function": (
                             lambda data: get_total_size(data.get("totalSize"))
@@ -293,7 +285,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
                     },
                     f"{base_id}_items": {
                         "endpoint": f"api/libraries/{library.id}/stats",
-                        "name": f"{library.name} Items",
+                        "name": f"Audiobookshelf {library.name} Items",
                         "unique_id": f"{base_id}_items",
                         "data_function": lambda data: data.get("totalItems"),
                         "unit": "items",
@@ -301,7 +293,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
                     },
                     f"{base_id}_duration": {
                         "endpoint": f"api/libraries/{library.id}/stats",
-                        "name": f"{library.name} Duration",
+                        "name": f"Audiobookshelf {library.name} Duration",
                         "unique_id": f"{base_id}_duration",
                         "data_function": (
                             lambda data: get_total_duration(data.get("totalDuration"))
@@ -318,17 +310,24 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
         data = {}
         try:
             async with aiohttp.ClientSession() as session:
-                for sensor in sensors:
+                unique_endpoints: set[str] = {
+                    sensor["endpoint"] for sensor in sensors.values()
+                }
+                _LOGGER.debug(
+                    "Unique endpoints:\n%s",
+                    "\n".join(endpoint for endpoint in unique_endpoints),
+                )
+                for endppoint in unique_endpoints:
                     async with session.get(
-                        f"{API_URL}/{sensors[sensor]["endpoint"]}", headers=headers
+                        f"{API_URL}/{endppoint}", headers=headers
                     ) as response:
                         if response.status != HTTP_OK:
                             error_message = f"Error fetching data: {response.status}"
                             raise UpdateFailed(error_message)
-                        data[sensors[sensor]["endpoint"]] = await response.json()
+                        data[endppoint] = await response.json()
                     _LOGGER.debug(
                         "Data returns for %s",
-                        f"{API_URL}/{sensors[sensor]["endpoint"]}",
+                        f"{API_URL}/{endppoint}",
                     )
             return data  # noqa: TRY300
         except aiohttp.ClientError as err:
@@ -336,7 +335,7 @@ class AudiobookshelfDataUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(msg) from err
 
 
-class AudiobookshelfSensor(Entity):
+class AudiobookshelfSensor(RestoreEntity, Entity):
     """Representation of a sensor."""
 
     def __init__(
@@ -345,13 +344,24 @@ class AudiobookshelfSensor(Entity):
         """Initialize the sensor."""
         self._name = sensor["name"]
         self._unique_id = sensor.get("unique_id", self._name)
-        self._unit = sensor.get("unit", None)
+        self._attr_unit_of_measurement = sensor.get("unit", None)
         self._endpoint = sensor["endpoint"]
         self.coordinator = coordinator
-        self._state = None
-        self._attributes = {}
+        self._state: str | None = None
+        self._attr_extra_state_attributes = {}
         self._process_data = sensor["data_function"]
         self._process_attributes = sensor["attributes_function"]
+
+    async def async_added_to_hass(self) -> None:
+        """Call when entity is added to hass."""
+        await super().async_added_to_hass()
+        if (last_state := await self.async_get_last_state()) is not None:
+            self._state = last_state.state
+            self._attributes = last_state.attributes
+
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
 
     @property
     def name(self) -> str:
@@ -366,15 +376,16 @@ class AudiobookshelfSensor(Entity):
     @property
     def extra_state_attributes(self) -> dict:
         """Return the state attributes."""
-        return self._attributes
+        return self._attr_extra_state_attributes
 
     @property
-    def device_info(self) -> dict:
+    def device_info(self) -> DeviceInfo | None:
         """Return device information about this entity."""
         return {
             "identifiers": {(DOMAIN, API_URL)},
             "name": "Audiobookshelf",
             "manufacturer": "advplyr",
+            "sw_version": VERSION,
             "configuration_url": API_URL,
         }
 
@@ -390,7 +401,9 @@ class AudiobookshelfSensor(Entity):
         if data:
             endpoint_data = data.get(self._endpoint, {})
             if isinstance(endpoint_data, dict):
-                self._attributes.update(self._process_attributes(endpoint_data))
+                self._attr_extra_state_attributes.update(
+                    self._process_attributes(endpoint_data)
+                )
                 new_state = self._process_data(data=endpoint_data)
                 if new_state not in (0, None) or self._state in (0, None):
                     self._state = new_state
@@ -400,9 +413,3 @@ class AudiobookshelfSensor(Entity):
                     type(endpoint_data),
                 )
                 _LOGGER.debug("Data: %s", endpoint_data)
-
-    async def async_added_to_hass(self) -> None:
-        """When entity is added to hass."""
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self.async_write_ha_state)
-        )

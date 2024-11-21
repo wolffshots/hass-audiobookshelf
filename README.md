@@ -11,25 +11,44 @@
 [![Project Maintenance][maintenance-shield]][user_profile]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 
-**This component will set up the following sensors.**
+## This component will set up the following general sensors:
 
 | Entity          |       Type       | Description                          |
 | --------------- | ---------------- | ------------------------------------ |
-| `connectivity`  | `binary_sensor`  | Show whether the server is connected |
-| `sessions`      | `sensor`         | Show number of open audio sessions   |
+| `open_sessions` | `sensor`         | Show number of open audio sessions   |
 | `libraries`     | `sensor`         | Number of libraries on the server    |
+| `users`         | `sensor`         | Number of users on the server        |
+
+## It also adds the following library specific sensors (for each library that it finds during setup):
+| Entity             | Type           | Description                                              |
+| ------------------ | -------------- | -------------------------------------------------------- |
+| `items`            | `sensor`       | Number of items in the library                           |
+| `duration`         | `sensor`       | Total time in hours of playable content in library       |
+| `size`             | `sensor`       | Total disk space used by library in GB                   |
+
+## Examples
+
+![Example of sensors on device](docs/hass-audiobookshelf-example.png)
 
 ## Installation
 
+### Installation with HACS
+
+1. Make sure you have HACS fully set up (if you don't you can do so [here](https://hacs.xyz/docs/use/))
+2. Open up HACS in you Home Assistant instance and search for "Audiobookshelf" and add it
+3. Restart Home Assistant once it is installed
+4. In the Home Assistant UI go to "Configuration" -> "Integrations" click "+" and search for "Audiobookshelf"
+5. Click on "Audiobookshelf" and proceed to [Configuration](#configuration)
+
 ### Manual installation
 
-1. Using the tool of choice open the directory (folder) for your HA configuration (where you find `configuration.yaml`).
-2. If you do not have a `custom_components` directory (folder) there, you need to create it.
-3. In the `custom_components` directory (folder) create a new folder called `audiobookshelf`.
-4. Download _all_ the files from the `custom_components/audiobookshelf/` directory (folder) in this repository.
-5. Place the files you downloaded in the new directory (folder) you created.
-6. Restart Home Assistant
-7. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Audiobookshelf"
+1. Using the tool of choice open the directory (folder) for your Home Assistant configuration (where you find `configuration.yaml`)
+2. If you do not have a `custom_components` directory (folder) there, you need to create it
+3. Download the `Audiobookshelf_vX.X.X.zip` file from the [latest release](https://github.com/wolffshots/hass-audiobookshelf/releases/latest)
+4. Unzip the folder and place it into `custom_components`
+5. Restart Home Assistant
+6. In the Home Assistant UI go to "Configuration" -> "Integrations" click "+" and search for "Audiobookshelf"
+7. Click on "Audiobookshelf" and proceed to [Configuration](#configuration)
 
 ## Configuration
 
@@ -44,6 +63,12 @@ For more info on what the token can be used for see: https://api.audiobookshelf.
 
 ### Setting up via the UI
 ![Config in UI](docs/hass-audiobookshelf-config.png)
+
+| Variable        | Description                                                                                               |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| `URL`           | The URL and port of your Audiobookshelf instance (must start with the protocol, http:// or https://)      |
+| `API key`       | The API key that you got in the previous step                                                             |
+| `Scan interval` | How regularly the data should be fetched from your Audiobookshelf instance (in seconds), defaults to 300s |
 
 ## Credits
 
