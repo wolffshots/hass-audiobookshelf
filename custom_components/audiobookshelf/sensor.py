@@ -160,7 +160,7 @@ class LibraryFolder:
     """Class representing a folder in an Audiobookshelf library."""
 
     id: str
-    full_path: str
+    full_path: str | None
     library_id: str
     added_at: int | None
 
@@ -174,7 +174,7 @@ class LibrarySettings:
     auto_scan_cron_expression: str | None
     skip_matching_media_with_asin: bool | None
     skip_matching_media_with_isbn: bool | None
-    audiobooks_only: bool
+    audiobooks_only: bool | None
     epubs_allow_scripted_content: bool | None
     hide_single_book_series: bool | None
     only_show_later_books_in_continue_series: bool | None
@@ -192,9 +192,9 @@ class Library:
     folders: list[LibraryFolder] | None
     display_order: int | None
     icon: str | None
-    media_type: str
+    media_type: str | None
     provider: str | None
-    settings: LibrarySettings
+    settings: LibrarySettings | None
     last_scan: int | None
     last_scan_version: str | None
     created_at: int | None
