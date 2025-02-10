@@ -5,4 +5,4 @@ ruff==0.8.1
 mypy==1.13.0
 pytest==8.3.4
 libpcap>=1.11.0b14
-dacite==1.8.1
+dacite==1.9.2
