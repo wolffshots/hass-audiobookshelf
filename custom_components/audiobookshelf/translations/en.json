@@ -12,41 +12,23 @@
         },
         "error": {
             "api_auth_error": "Invalid authentication",
-            "api_other_error": "Other error querying API",
             "api_key_invalid": "API key is missing or invalid",
             "url_invalid": "URL is missing or invalid",
             "scan_interval_invalid": "Scan interval is missing or invalid",
-            "url_protocol_missing": "URL must start with http:// or https://",
-            "api_timeout_error": "Timed out waiting for API",
-            "api_client_connector_error": "Client couldn't connect to API",
-            "unknown": "Unexpected error"
+            "url_protocol_missing": "URL must start with http:// or https://"
         },
         "abort": {
             "already_configured": "Device is already configured"
         }
     },
-    "entity": {
-        "sensor": {
-            "audiobookshelf_users": {
-                "name": "Users",
-                "state_attributes": {
-                    "active_users": {
-                        "name": "Active Users"
-                    },
-                    "total_users": {
-                        "name": "Total Users"
-                    }
-                }
-            },
-            "audiobookshelf_libraries": {
-                "name": "Libraries",
-                "state_attributes": {
-                    "total_duration": {
-                        "name": "Total Duration"
-                    },
-                    "total_items": {
-                        "name": "Total Items"
-                    }
+    "services": {
+        "remove_my_progress": {
+            "name": "Remove My Progress",
+            "description": "Remove listening progress for library items.",
+            "fields": {
+                "series_name": {
+                    "name": "series name to match for removal",
+                    "description": ""
                 }
             }
         }

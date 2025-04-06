@@ -1,0 +1,6 @@
+remove_my_progress:
+  fields:
+    series_name:
+      required: true
+      example: construction site
+      default: true

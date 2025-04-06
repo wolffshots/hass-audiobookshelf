@@ -4,20 +4,23 @@ import logging
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
+from homeassistant.const import CONF_SCAN_INTERVAL, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_API_KEY
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 
-from custom_components.audiobookshelf.config_flow import validate_config
+from custom_components.audiobookshelf.config_flow import validate_config, verify_config
+from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
 
-from .const import DOMAIN, ISSUE_URL, PLATFORMS, VERSION
+from .const import DOMAIN, PLATFORMS, VERSION
+from .services import async_setup_services
 
 CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: vol.Schema(
             {
-                vol.Required(CONF_API_KEY): cv.string,
+                vol.Required(CONF_USERNAME): cv.string,
+                vol.Required(CONF_PASSWORD): cv.string,
                 vol.Required(CONF_URL): cv.string,
                 vol.Optional(CONF_SCAN_INTERVAL, default=300): cv.positive_int,
             }
@@ -32,39 +35,46 @@ _LOGGER = logging.getLogger(__name__)
 def clean_config(data: dict[str, str]) -> dict[str, str]:
     """Remove the api key from config."""
     try:
-        if bool(data[CONF_API_KEY]):
+        if CONF_API_KEY in data:
             data[CONF_API_KEY] = "<redacted>"
-    except Exception:
-        _LOGGER.exception("Failed to clean config, most likely not valid")
+    except Exception as e:
+        _LOGGER.exception("Failed to clean config, most likely not valid", exc_info=e)
     return data
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Audiobookshelf from a config entry."""
+    hass.data.setdefault(DOMAIN, {})
+
     if entry.data is None:
         error_message = "Configuration not found"
         raise ConfigEntryNotReady(error_message)
-
-    _LOGGER.info(
-        """
-            -------------------------------------------------------------------
-            Audiobookshelf
-            Version: %s
-            This is a custom integration!
-            If you have any issues with this you need to open an issue here:
-            %s
-            -------------------------------------------------------------------
-            """,
-        VERSION,
-        ISSUE_URL,
-    )
 
     _LOGGER.debug(
         "Setting up Audiobookshelf with config: %s", clean_config(entry.data.copy())
     )
 
-    validate_config(entry.data.copy())
+    errors = validate_config(entry.data.copy())
+    errors.update(await verify_config(entry.data.copy()))
+    if len(errors.keys()) > 0:
+        _LOGGER.debug("Config validation errors: %s", errors)
+        raise ConfigEntryNotReady(errors)
 
+    scan_interval = int(entry.data[CONF_SCAN_INTERVAL])
+    api_url = entry.data[CONF_URL]
+    token = entry.data[CONF_API_KEY]
+    coordinator = AudiobookShelfDataUpdateCoordinator(
+        hass,
+        scan_interval=scan_interval,
+        api_url=api_url,
+        token=token,
+    )
+
+    await coordinator.async_config_entry_first_refresh()
+
+    hass.data[DOMAIN] = coordinator
+
+    async_setup_services(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
