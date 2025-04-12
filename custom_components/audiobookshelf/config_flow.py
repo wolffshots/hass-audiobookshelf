@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+from aioaudiobookshelf import LoginError, SessionConfiguration, get_user_client_by_token
 from aiohttp import ClientSession
 from homeassistant import config_entries
 from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
-from aioaudiobookshelf import SessionConfiguration, LoginError, get_user_client_by_token
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigFlowResult
 
 from .const import DOMAIN
 
@@ -43,9 +47,10 @@ async def verify_config(data: dict[str, str]) -> dict:
                     pagination_items_per_page=30,
                 ),
             )
-        return {}
     except LoginError:
         return {"base": "api_auth_error"}
+    else:
+        return {}
 
 
 class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -55,7 +60,7 @@ class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, str] | None = None
-    ):
+    ) -> ConfigFlowResult:
         """Handle the user step."""
         errors = {}
 

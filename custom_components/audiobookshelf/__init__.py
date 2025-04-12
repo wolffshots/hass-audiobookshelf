@@ -4,15 +4,21 @@ import logging
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_SCAN_INTERVAL, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_API_KEY
+from homeassistant.const import (
+    CONF_API_KEY,
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+    CONF_URL,
+    CONF_USERNAME,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 
 from custom_components.audiobookshelf.config_flow import validate_config, verify_config
-from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
 
-from .const import DOMAIN, PLATFORMS, VERSION
+from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
+from .const import DOMAIN, PLATFORMS
 from .services import async_setup_services
 
 CONFIG_SCHEMA = vol.Schema(
