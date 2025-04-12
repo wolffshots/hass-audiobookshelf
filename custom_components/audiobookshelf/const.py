@@ -2,6 +2,6 @@
 
 from homeassistant.const import Platform
 
-VERSION = "v0.2.3"
+VERSION = "v0.2.4"
 DOMAIN = "audiobookshelf"
 PLATFORMS: list[Platform] = [Platform.SENSOR]
