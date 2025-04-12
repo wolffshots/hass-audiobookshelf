@@ -2,3 +2,4 @@ homeassistant==2025.1.4
 ruff==0.9.9
 pytest==8.3.5
 aioaudiobookshelf==0.1.6
+mypy==1.15.0
