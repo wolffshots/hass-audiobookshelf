@@ -59,7 +59,7 @@ class LibraryStats(_BaseModel):
 class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Audiobookshelf data from the API."""
 
-    _client: AdminClient
+    _client: AdminClient = None  # type: ignore[import-untyped]
     api_url: str = ""
 
     def __init__(
