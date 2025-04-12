@@ -69,7 +69,7 @@ async def async_setup_entry(
 
     coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN]
 
-    sensors_descriptions: list[SensorEntityDescription] = []
+    sensors_descriptions: list[AudiobookShelfSensorEntityDescription] = []
     sensors_descriptions.extend(SENSOR_DESCRIPTIONS)
     libraries = await coordinator.get_libraries()
     for library in libraries:
@@ -120,20 +120,24 @@ async def async_setup_entry(
 class AudiobookShelfSensor(CoordinatorEntity, SensorEntity):
     """Representation of a sensor."""
 
+    coordinator: AudiobookShelfDataUpdateCoordinator
+
     def __init__(
         self,
         coordinator: AudiobookShelfDataUpdateCoordinator,
-        sensor_description: SensorEntityDescription,
+        sensor_description: AudiobookShelfSensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
-        self.entity_description = sensor_description
+        self.entity_description: AudiobookShelfSensorEntityDescription = (
+            sensor_description
+        )
         super().__init__(coordinator, None)
 
     @property
     def native_value(self) -> Any | None:
         """Return the state of the sensor."""
         native_value = self.coordinator.data.get(self.entity_description.key)
-        if self.entity_description.key_context is not None:
+        if self.entity_description.key_context is not None and native_value is not None:
             native_value = native_value[self.entity_description.key_context]
         if self.entity_description.key_context_method is not None:
             native_value = getattr(

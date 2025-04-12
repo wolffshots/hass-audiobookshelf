@@ -59,7 +59,8 @@ class LibraryStats(_BaseModel):
 class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Audiobookshelf data from the API."""
 
-    _client: AdminClient = None
+    _client: AdminClient
+    api_url: str = ""
 
     def __init__(
         self, hass: HomeAssistant, scan_interval: int, api_url: str, token: str
@@ -92,7 +93,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def get_libraries(self) -> list[Library]:
         """Fetch library id list from API."""
-        return await (await self.get_client()).get_all_libraries()
+        return await (await self.get_client()).get_all_libraries()  # type: ignore[no-any-return]
 
     async def count_users(self) -> int:
         """Fetch count active users from API."""
