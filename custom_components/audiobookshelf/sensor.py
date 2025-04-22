@@ -38,6 +38,13 @@ SENSOR_DESCRIPTIONS: Final[tuple[AudiobookShelfSensorEntityDescription, ...]] = 
     AudiobookShelfSensorEntityDescription(
         key="count_users",
         name="Audiobookshelf Users",
+        icon="mdi:account-multiple-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="users",
+    ),
+    AudiobookShelfSensorEntityDescription(
+        key="count_users_online",
+        name="Audiobookshelf Users Online",
         icon="mdi:account-multiple",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="users",

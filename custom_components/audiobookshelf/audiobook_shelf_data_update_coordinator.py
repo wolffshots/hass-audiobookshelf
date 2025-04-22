@@ -24,6 +24,7 @@ _LOGGER = getLogger(__name__)
 
 API_DATA_METHODS = [
     "count_users",
+    "count_users_online",
     "count_open_sessions",
     "library_stats",
 ]
@@ -38,10 +39,16 @@ class AllUsersResponse(_BaseModel):
 
 @dataclass(kw_only=True)
 class UsersOnlineResponse(_BaseModel):
-    """AllUsersResponse."""
+    """UsersOnlineResponse."""
 
     users_online: Annotated[list[_UserBase], Alias("usersOnline")]
-    open_sessions: Annotated[list[PlaybackSession], Alias("openSessions")]
+
+
+@dataclass(kw_only=True)
+class OpenSessionsResponse(_BaseModel):
+    """OpenSessionsResponse."""
+
+    sessions: Annotated[list[PlaybackSession], Alias("sessions")]
 
 
 @dataclass(kw_only=True)
@@ -96,7 +103,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         return await (await self.get_client()).get_all_libraries()  # type: ignore[no-any-return]
 
     async def count_users(self) -> int:
-        """Fetch count active users from API."""
+        """Fetch and count active users from API."""
         response_cls: type[AllUsersResponse] = AllUsersResponse
         client = await self.get_client()
         response = await client._get("/api/users")  # noqa: SLF001
@@ -104,11 +111,18 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         return len(users)
 
     async def count_open_sessions(self) -> int:
-        """Fetch count open sessions from API."""
+        """Fetch and count open sessions from API."""
+        client = await self.get_client()
+        response = await client._get("api/sessions/open")  # noqa: SLF001
+        sessions = OpenSessionsResponse.from_json(response).sessions
+        return len(sessions)
+
+    async def count_users_online(self) -> int:
+        """Fetch and count users online from API."""
         client = await self.get_client()
         response = await client._get("api/users/online")  # noqa: SLF001
-        open_sessions = UsersOnlineResponse.from_json(response).open_sessions
-        return len(open_sessions)
+        users_online = UsersOnlineResponse.from_json(response).users_online
+        return len(users_online)
 
     async def library_stats(self) -> dict[str, LibraryStats]:
         """Fetch library stats from API."""
