@@ -1,5 +1,6 @@
 """Module containing the data update coordinator the Audiobookshelf integration."""
 
+import time
 from dataclasses import dataclass
 from datetime import timedelta
 from logging import getLogger
@@ -26,6 +27,7 @@ API_DATA_METHODS = [
     "count_users",
     "count_users_online",
     "count_open_sessions",
+    "count_recent_sessions",
     "library_stats",
 ]
 
@@ -49,6 +51,20 @@ class OpenSessionsResponse(_BaseModel):
     """OpenSessionsResponse."""
 
     sessions: Annotated[list[PlaybackSession], Alias("sessions")]
+
+    def filter_active_sessions(
+        self, max_idle_seconds: int = 120
+    ) -> list[PlaybackSession]:
+        """Filter sessions that have been updated recently."""
+        current_time_ms = int(time.time() * 1000)
+        _LOGGER.info("Current time in ms: %s", current_time_ms)
+        _LOGGER.info("Sessions: %s", self.sessions)
+        return [
+            session
+            for session in self.sessions
+            if hasattr(session, "updated_at")
+            and (current_time_ms - session.updated_at) < (max_idle_seconds * 1000)
+        ]
 
 
 @dataclass(kw_only=True)
@@ -109,6 +125,13 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         response = await client._get("/api/users")  # noqa: SLF001
         users = response_cls.from_json(response).users
         return len(users)
+
+    async def count_recent_sessions(self) -> int:
+        """Fetch and count open sessions with recent update time from API."""
+        client = await self.get_client()
+        response = await client._get("api/sessions/open")  # noqa: SLF001
+        sessions = OpenSessionsResponse.from_json(response).filter_active_sessions()
+        return len(sessions)
 
     async def count_open_sessions(self) -> int:
         """Fetch and count open sessions from API."""

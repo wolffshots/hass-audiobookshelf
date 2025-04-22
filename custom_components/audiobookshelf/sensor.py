@@ -52,6 +52,13 @@ SENSOR_DESCRIPTIONS: Final[tuple[AudiobookShelfSensorEntityDescription, ...]] = 
     AudiobookShelfSensorEntityDescription(
         key="count_open_sessions",
         name="Audiobookshelf Open Sessions",
+        icon="mdi:account-music-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="sessions",
+    ),
+    AudiobookShelfSensorEntityDescription(
+        key="count_recent_sessions",
+        name="Audiobookshelf Recent Sessions",
         icon="mdi:account-music",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="sessions",
