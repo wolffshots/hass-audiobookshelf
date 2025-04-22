@@ -13,11 +13,13 @@
 
 ## This component will set up the following general sensors:
 
-| Entity          |       Type       | Description                          |
-| --------------- | ---------------- | ------------------------------------ |
-| `open_sessions` | `sensor`         | Show number of open audio sessions   |
-| `libraries`     | `sensor`         | Number of libraries on the server    |
-| `users`         | `sensor`         | Number of users on the server        |
+| Entity            |       Type       | Description                                            |
+| ---------------   | ---------------- | ------------------------------------                   |
+| `open_sessions`   | `sensor`         | Show number of open audio sessions                     |
+| `recent_sessions` | `sensor`         | Show number of open audio sessions updated recently    |
+| `libraries`       | `sensor`         | Number of libraries on the server                      |
+| `users`           | `sensor`         | Number of users on the server                          |
+| `online_users`    | `sensor`         | Number of online users on the server                   |
 
 ## It also adds the following library specific sensors (for each library that it finds during setup):
 | Entity             | Type           | Description                                              |
