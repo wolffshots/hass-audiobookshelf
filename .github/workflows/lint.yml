@@ -4,9 +4,13 @@ on:
   push:
     paths:
       - '**.py'
+      - 'requirements.txt'
+      - '**/.github/workflows/*.y*ml'
   pull_request:
     paths:
       - '**.py'
+      - 'requirements.txt'
+      - '**/.github/workflows/*.y*ml'
 
 jobs:
   lint:
