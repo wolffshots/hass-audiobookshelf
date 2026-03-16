@@ -49,8 +49,8 @@ async def async_setup_entry(
         if new_entities:
             async_add_entities(new_entities)
 
-    coordinator.async_add_listener(_add_new_players)
     _add_new_players()
+    coordinator.async_add_listener(_add_new_players)
 
 
 class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
@@ -88,8 +88,8 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         """Return the name of this player."""
         session = self._get_session()
         if session:
-            user_id = session.get("user_id", self._session_id)
-            return f"Audiobookshelf {user_id}"
+            username = session.get("username") or session.get("user_id") or self._session_id
+            return f"Audiobookshelf {username}"
         return f"Audiobookshelf {self._session_id}"
 
     @property
@@ -143,6 +143,7 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         return {
             "session_id": session.get("id"),
             "user_id": session.get("user_id"),
+            "username": session.get("username"),
             "play_method": session.get("play_method"),
             "media_type": session.get("media_type"),
             "updated_at": session.get("updated_at"),

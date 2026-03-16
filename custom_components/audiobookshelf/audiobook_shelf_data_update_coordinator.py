@@ -168,28 +168,34 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         return len(users_online)
 
     async def active_sessions(self) -> list[dict[str, Any]]:
-        """Fetch full active session objects for media player use."""
         client = await self.get_client()
         response = await client._get("api/sessions/open")  # noqa: SLF001
         sessions = OpenSessionsResponse.from_json(response).filter_active_sessions()
-        return [
-            {
-                "id": getattr(session, "id_", None) or getattr(session, "id", None),
-                "user_id": getattr(session, "user_id", None),
-                "display_title": getattr(session, "display_title", None),
-                "display_author": getattr(session, "display_author", None),
-                "current_time": getattr(session, "current_time", None),
-                "duration": getattr(session, "duration", None),
-                "play_method": getattr(session, "play_method", None),
-                "media_type": getattr(session, "media_type", None),
-                "cover_path": getattr(session, "cover_path", None),
-                "updated_at": getattr(session, "updated_at", None),
-            }
-            for session in sessions
-        ]
+        users_response = await client._get("/api/users")  # noqa: SLF001
+        users = {str(u.id_): u for u in AllUsersResponse.from_json(users_response).users}
+        result = []
+        for session in sessions:
+            user_id = getattr(session, "user_id", None)
+            user = users.get(str(user_id)) if user_id is not None else None
+            username = getattr(user, "username", None) if user is not None else None
+            result.append(
+                {
+                    "id": getattr(session, "id_", None) or getattr(session, "id", None),
+                    "user_id": user_id,
+                    "username": username,
+                    "display_title": getattr(session, "display_title", None),
+                    "display_author": getattr(session, "display_author", None),
+                    "current_time": getattr(session, "current_time", None),
+                    "duration": getattr(session, "duration", None),
+                    "play_method": getattr(session, "play_method", None),
+                    "media_type": getattr(session, "media_type", None),
+                    "cover_path": getattr(session, "cover_path", None),
+                    "updated_at": getattr(session, "updated_at", None),
+                }
+            )
+        return result
 
     async def user_progress(self) -> list[UserProgress]:
-        """Fetch per-user reading progress from API."""
         client = await self.get_client()
         response = await client._get("/api/users")  # noqa: SLF001
         users = AllUsersResponse.from_json(response).users
@@ -198,7 +204,8 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
             media_progress = getattr(user, "media_progress", []) or []
             active = sorted(
                 [
-                    p for p in media_progress
+                    p
+                    for p in media_progress
                     if not getattr(p, "is_finished", False)
                     and getattr(p, "progress", 0) > 0
                 ],
@@ -210,13 +217,19 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
                 UserProgress(
                     user_id=str(getattr(user, "id_", "") or getattr(user, "id", "")),
                     username=str(getattr(user, "username", "unknown")),
-                    item_id=str(getattr(current, "library_item_id", None)) if current else None,
+                    item_id=str(getattr(current, "library_item_id", None))
+                    if current
+                    else None,
                     title=None,
                     author=None,
                     progress=float(getattr(current, "progress", 0)) if current else None,
-                    current_time=float(getattr(current, "current_time", 0)) if current else None,
+                    current_time=float(getattr(current, "current_time", 0))
+                    if current
+                    else None,
                     duration=float(getattr(current, "duration", 0)) if current else None,
-                    is_finished=False,
+                    is_finished=bool(getattr(current, "is_finished", False))
+                    if current
+                    else False,
                     cover_path=None,
                 )
             )
@@ -236,16 +249,21 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
                 for item in data.get("libraryItems", []):
                     media = item.get("media", {})
                     metadata = media.get("metadata", {})
-                    items.append({
-                        "library": library.name,
-                        "library_id": library.id_,
-                        "item_id": item.get("id"),
-                        "title": metadata.get("title"),
-                        "author": metadata.get("authorName") or metadata.get("author"),
-                        "added_at": item.get("addedAt"),
-                    })
+                    items.append(
+                        {
+                            "library": library.name,
+                            "library_id": library.id_,
+                            "item_id": item.get("id"),
+                            "title": metadata.get("title"),
+                            "author": metadata.get("authorName")
+                            or metadata.get("author"),
+                            "added_at": item.get("addedAt"),
+                        }
+                    )
             except Exception as err:  # noqa: BLE001
-                _LOGGER.warning("Could not fetch recently added for %s: %s", library.name, err)
+                _LOGGER.warning(
+                    "Could not fetch recently added for %s: %s", library.name, err
+                )
         items.sort(key=lambda x: x.get("added_at") or 0, reverse=True)
         return items[:10]
 
@@ -255,7 +273,9 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         client = await self.get_client()
         stats = {}
         for library in libraries:
-            response = await client._get(f"api/libraries/{library.id_}/stats")  # noqa: SLF001
+            response = await client._get(
+                f"api/libraries/{library.id_}/stats"
+            )  # noqa: SLF001
             stats[library.id_] = LibraryStats.from_json(response)
         return stats
 
