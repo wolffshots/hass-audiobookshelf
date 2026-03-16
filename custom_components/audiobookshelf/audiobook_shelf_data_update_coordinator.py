@@ -149,34 +149,38 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
     async def count_recent_sessions(self) -> int:
         """Fetch and count open sessions with recent update time from API."""
         client = await self.get_client()
-        response = await client._get("api/sessions/open")  # noqa: SLF001
+        response = await client._get("/api/sessions/open")  # noqa: SLF001
         sessions = OpenSessionsResponse.from_json(response).filter_active_sessions()
         return len(sessions)
 
     async def count_open_sessions(self) -> int:
         """Fetch and count open sessions from API."""
         client = await self.get_client()
-        response = await client._get("api/sessions/open")  # noqa: SLF001
+        response = await client._get("/api/sessions/open")  # noqa: SLF001
         sessions = OpenSessionsResponse.from_json(response).sessions
         return len(sessions)
 
     async def count_users_online(self) -> int:
         """Fetch and count users online from API."""
         client = await self.get_client()
-        response = await client._get("api/users/online")  # noqa: SLF001
+        response = await client._get("/api/users/online")  # noqa: SLF001
         users_online = UsersOnlineResponse.from_json(response).users_online
         return len(users_online)
 
     async def active_sessions(self) -> list[dict[str, Any]]:
+        """Fetch full active session objects for media player use."""
         client = await self.get_client()
-        response = await client._get("api/sessions/open")  # noqa: SLF001
+        response = await client._get("/api/sessions/open")  # noqa: SLF001
         sessions = OpenSessionsResponse.from_json(response).filter_active_sessions()
         users_response = await client._get("/api/users")  # noqa: SLF001
-        users = {str(u.id_): u for u in AllUsersResponse.from_json(users_response).users}
+        users = {
+            str(getattr(u, "id_", "") or getattr(u, "id", "")): u
+            for u in AllUsersResponse.from_json(users_response).users
+        }
         result = []
         for session in sessions:
-            user_id = getattr(session, "user_id", None)
-            user = users.get(str(user_id)) if user_id is not None else None
+            user_id = str(getattr(session, "user_id", "") or "")
+            user = users.get(user_id)
             username = getattr(user, "username", None) if user is not None else None
             result.append(
                 {
@@ -196,6 +200,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         return result
 
     async def user_progress(self) -> list[UserProgress]:
+        """Fetch per-user reading progress from API."""
         client = await self.get_client()
         response = await client._get("/api/users")  # noqa: SLF001
         users = AllUsersResponse.from_json(response).users
@@ -243,7 +248,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         for library in libraries:
             try:
                 response = await client._get(  # noqa: SLF001
-                    f"api/libraries/{library.id_}/recentlyadded?limit=5"
+                    f"/api/libraries/{library.id_}/recentlyadded?limit=5"
                 )
                 data = json.loads(response)
                 for item in data.get("libraryItems", []):
@@ -273,9 +278,9 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         client = await self.get_client()
         stats = {}
         for library in libraries:
-            response = await client._get(
-                f"api/libraries/{library.id_}/stats"
-            )  # noqa: SLF001
+            response = await client._get(  # noqa: SLF001
+                f"/api/libraries/{library.id_}/stats"
+            )
             stats[library.id_] = LibraryStats.from_json(response)
         return stats
 

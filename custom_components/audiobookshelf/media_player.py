@@ -1,5 +1,6 @@
 """Module containing the media player platform for the Audiobookshelf integration."""
 
+import time
 from logging import getLogger
 from typing import Any
 
@@ -38,23 +39,23 @@ async def async_setup_entry(
     coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN]
     tracked: set[str] = set()
 
-    def _add_new_players() -> None:
+    def _sync_players() -> None:
         sessions = coordinator.data.get("active_sessions", []) if coordinator.data else []
         new_entities = []
         for session in sessions:
-            session_id = session.get("id")
-            if session_id and session_id not in tracked:
-                tracked.add(session_id)
-                new_entities.append(AudiobookShelfMediaPlayer(coordinator, session_id))
+            user_id = session.get("user_id")
+            if user_id and str(user_id) not in tracked:
+                tracked.add(str(user_id))
+                new_entities.append(AudiobookShelfMediaPlayer(coordinator, str(user_id)))
         if new_entities:
             async_add_entities(new_entities)
 
-    _add_new_players()
-    coordinator.async_add_listener(_add_new_players)
+    _sync_players()
+    coordinator.async_add_listener(_sync_players)
 
 
 class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
-    """Representation of an active Audiobookshelf playback session."""
+    """Representation of a per-user Audiobookshelf playback session."""
 
     coordinator: AudiobookShelfDataUpdateCoordinator
     _attr_supported_features = SUPPORTED_FEATURES
@@ -63,41 +64,39 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     def __init__(
         self,
         coordinator: AudiobookShelfDataUpdateCoordinator,
-        session_id: str,
+        user_id: str,
     ) -> None:
         """Initialize the media player."""
         super().__init__(coordinator, None)
-        self._session_id = session_id
+        self._user_id = user_id
 
     def _get_session(self) -> dict[str, Any] | None:
-        """Return the current session dict for this player."""
+        """Return the active session for this user."""
         if not self.coordinator.data:
             return None
         for session in self.coordinator.data.get("active_sessions", []):
-            if session.get("id") == self._session_id:
+            if str(session.get("user_id")) == self._user_id:
                 return session
         return None
 
     @property
     def unique_id(self) -> str:
-        """Return a unique ID."""
-        return f"{self.coordinator.api_url}_mediaplayer_{self._session_id}"
+        """Return a unique ID per user."""
+        return f"{self.coordinator.api_url}_mediaplayer_user_{self._user_id}"
 
     @property
     def name(self) -> str:
         """Return the name of this player."""
         session = self._get_session()
-        if session:
-            username = session.get("username") or session.get("user_id") or self._session_id
-            return f"Audiobookshelf {username}"
-        return f"Audiobookshelf {self._session_id}"
+        username = (
+            session.get("username") if session else None
+        ) or self._user_id
+        return f"Audiobookshelf {username}"
 
     @property
     def state(self) -> MediaPlayerState:
         """Return the playback state."""
-        if self._get_session() is None:
-            return MediaPlayerState.IDLE
-        return MediaPlayerState.PLAYING
+        return MediaPlayerState.PLAYING if self._get_session() else MediaPlayerState.IDLE
 
     @property
     def media_title(self) -> str | None:
@@ -113,7 +112,7 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     @property
     def media_duration(self) -> float | None:
-        """Return the duration of current media in seconds."""
+        """Return the duration in seconds."""
         session = self._get_session()
         return session.get("duration") if session else None
 
@@ -122,6 +121,14 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         """Return the current playback position in seconds."""
         session = self._get_session()
         return session.get("current_time") if session else None
+
+    @property
+    def media_position_updated_at(self) -> float | None:
+        """Return when the position was last updated."""
+        session = self._get_session()
+        if session and session.get("updated_at"):
+            return session["updated_at"] / 1000
+        return time.time()
 
     @property
     def media_image_url(self) -> str | None:
@@ -148,6 +155,45 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
             "media_type": session.get("media_type"),
             "updated_at": session.get("updated_at"),
         }
+
+    async def async_media_play(self) -> None:
+        """Send play command."""
+        session = self._get_session()
+        if not session:
+            return
+        session_id = session.get("id")
+        client = await self.coordinator.get_client()
+        try:
+            await client._post(f"api/sessions/{session_id}/play", data={})  # noqa: SLF001
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Could not send play to session %s: %s", session_id, err)
+
+    async def async_media_pause(self) -> None:
+        """Send pause command."""
+        session = self._get_session()
+        if not session:
+            return
+        session_id = session.get("id")
+        client = await self.coordinator.get_client()
+        try:
+            await client._post(f"api/sessions/{session_id}/close", data={})  # noqa: SLF001
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Could not send pause to session %s: %s", session_id, err)
+
+    async def async_media_seek(self, position: float) -> None:
+        """Seek to position in seconds."""
+        session = self._get_session()
+        if not session:
+            return
+        session_id = session.get("id")
+        client = await self.coordinator.get_client()
+        try:
+            await client._post(  # noqa: SLF001
+                f"api/sessions/{session_id}/sync",
+                data={"currentTime": position, "timeListened": 0, "duration": session.get("duration", 0)},
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Could not seek session %s: %s", session_id, err)
 
     @property
     def device_info(self) -> DeviceInfo | None:
