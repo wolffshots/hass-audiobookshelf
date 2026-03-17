@@ -17,8 +17,11 @@ from homeassistant.helpers import config_validation as cv
 
 from custom_components.audiobookshelf.config_flow import validate_config, verify_config
 
-from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
-from .const import DOMAIN, PLATFORMS
+from .audiobook_shelf_data_update_coordinator import (
+    AudiobookShelfDataUpdateCoordinator,
+    MediaPlayerSessionCoordinator,
+)
+from .const import DATA_COORDINATOR, DATA_MEDIA_PLAYER_COORDINATOR, DOMAIN, PLATFORMS
 from .services import async_setup_services
 
 CONFIG_SCHEMA = vol.Schema(
@@ -69,16 +72,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     scan_interval = int(entry.data[CONF_SCAN_INTERVAL])
     api_url = entry.data[CONF_URL]
     token = entry.data[CONF_API_KEY]
+
     coordinator = AudiobookShelfDataUpdateCoordinator(
         hass,
         scan_interval=scan_interval,
         api_url=api_url,
         token=token,
     )
-
     await coordinator.async_config_entry_first_refresh()
 
-    hass.data[DOMAIN] = coordinator
+    media_player_coordinator = MediaPlayerSessionCoordinator(
+        hass,
+        api_url=api_url,
+        token=token,
+    )
+    await media_player_coordinator.async_config_entry_first_refresh()
+
+    hass.data[DOMAIN] = {
+        DATA_COORDINATOR: coordinator,
+        DATA_MEDIA_PLAYER_COORDINATOR: media_player_coordinator,
+    }
 
     async_setup_services(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

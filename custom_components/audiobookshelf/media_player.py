@@ -17,15 +17,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.audiobookshelf.audiobook_shelf_data_update_coordinator import (
-    AudiobookShelfDataUpdateCoordinator,
+    MediaPlayerSessionCoordinator,
 )
-from custom_components.audiobookshelf.const import DOMAIN, VERSION
+from custom_components.audiobookshelf.const import DATA_MEDIA_PLAYER_COORDINATOR, DOMAIN, VERSION
 
 _LOGGER = getLogger(__name__)
 
-# ABS has no server-side pause/play API.
-# State is determined by comparing updatedAt between consecutive polls:
-# if updatedAt changed since the last poll -> PLAYING, else -> PAUSED.
 SUPPORTED_FEATURES = (
     MediaPlayerEntityFeature.PLAY
     | MediaPlayerEntityFeature.PAUSE
@@ -40,11 +37,11 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the media player platform."""
-    coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN]
+    coordinator: MediaPlayerSessionCoordinator = hass.data[DOMAIN][DATA_MEDIA_PLAYER_COORDINATOR]
     tracked: set[str] = set()
 
     def _sync_players() -> None:
-        sessions = coordinator.data.get("active_sessions", []) if coordinator.data else []
+        sessions = coordinator.data or []
         new_entities = []
         for session in sessions:
             user_id = session.get("user_id")
@@ -61,28 +58,25 @@ async def async_setup_entry(
 class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     """Representation of a per-user Audiobookshelf playback session."""
 
-    coordinator: AudiobookShelfDataUpdateCoordinator
+    coordinator: MediaPlayerSessionCoordinator
     _attr_supported_features = SUPPORTED_FEATURES
     _attr_media_content_type = MediaType.MUSIC
 
     def __init__(
         self,
-        coordinator: AudiobookShelfDataUpdateCoordinator,
+        coordinator: MediaPlayerSessionCoordinator,
         user_id: str,
     ) -> None:
         """Initialize the media player."""
         super().__init__(coordinator, None)
         self._user_id = user_id
-        # Tracks the updatedAt value from the previous poll to detect changes.
         self._last_updated_at: int | None = None
-        # Cached state so we can hold PAUSED until updatedAt changes again.
+        self._initialized: bool = False
         self._cached_state: MediaPlayerState = MediaPlayerState.IDLE
 
     def _get_session(self) -> dict[str, Any] | None:
         """Return the active session for this user."""
-        if not self.coordinator.data:
-            return None
-        for session in self.coordinator.data.get("active_sessions", []):
+        for session in (self.coordinator.data or []):
             if str(session.get("user_id")) == self._user_id:
                 return session
         return None
@@ -90,25 +84,25 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator.
 
-        Called on every poll. We compare the current updatedAt against the
-        previous poll's value to determine if the client is actively playing.
+        First poll: seed _last_updated_at, stay IDLE.
+        Second+ poll: updated_at changed -> PLAYING, unchanged -> PAUSED.
+        No session -> IDLE.
         """
         session = self._get_session()
         if session is None:
             self._cached_state = MediaPlayerState.IDLE
             self._last_updated_at = None
+            self._initialized = False
         else:
             current_updated_at = session.get("updated_at")
-            if self._last_updated_at is None:
-                # First poll for this session — assume playing until proven otherwise.
-                self._cached_state = MediaPlayerState.PLAYING
+            if not self._initialized:
+                self._last_updated_at = current_updated_at
+                self._initialized = True
             elif current_updated_at != self._last_updated_at:
-                # updatedAt changed since last poll — client is actively syncing.
                 self._cached_state = MediaPlayerState.PLAYING
+                self._last_updated_at = current_updated_at
             else:
-                # updatedAt identical across two consecutive polls — client is paused.
                 self._cached_state = MediaPlayerState.PAUSED
-            self._last_updated_at = current_updated_at
         super()._handle_coordinator_update()
 
     @property
@@ -125,7 +119,7 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     @property
     def state(self) -> MediaPlayerState:
-        """Return the cached playback state determined on last coordinator update."""
+        """Return the cached playback state."""
         return self._cached_state
 
     @property
@@ -162,8 +156,7 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     def media_position_updated_at(self) -> datetime | None:
         """Return when the position was last updated as a UTC datetime.
 
-        HA uses this to extrapolate the position forward between polls.
-        Returning None when paused prevents HA from extrapolating incorrectly.
+        Only return when PLAYING so HA does not extrapolate forward while paused.
         """
         if self._cached_state != MediaPlayerState.PLAYING:
             return None
@@ -177,7 +170,7 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     @property
     def media_image_url(self) -> str | None:
-        """Return the cover art URL via ABS API."""
+        """Return the cover art URL."""
         session = self._get_session()
         if not session:
             return None
@@ -204,11 +197,11 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         }
 
     async def async_media_play(self) -> None:
-        """No server-side play in ABS — refresh coordinator to re-evaluate state."""
+        """Refresh coordinator to re-evaluate state."""
         await self.coordinator.async_request_refresh()
 
     async def async_media_pause(self) -> None:
-        """No server-side pause in ABS — refresh coordinator to re-evaluate state."""
+        """Refresh coordinator to re-evaluate state."""
         await self.coordinator.async_request_refresh()
 
     async def async_media_seek(self, position: float) -> None:

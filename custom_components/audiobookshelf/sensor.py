@@ -22,7 +22,7 @@ from custom_components.audiobookshelf.audiobook_shelf_data_update_coordinator im
     AudiobookShelfDataUpdateCoordinator,
     UserProgress,
 )
-from custom_components.audiobookshelf.const import DOMAIN, VERSION
+from custom_components.audiobookshelf.const import DATA_COORDINATOR, DOMAIN, VERSION
 
 _LOGGER = getLogger(__name__)
 
@@ -82,7 +82,7 @@ async def async_setup_entry(
     """Set up the sensor platform."""
     _LOGGER.debug("Configuration data: %s", clean_config(entry.data.copy()))
 
-    coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN]
+    coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN][DATA_COORDINATOR]
 
     sensors_descriptions: list[AudiobookShelfSensorEntityDescription] = []
     sensors_descriptions.extend(SENSOR_DESCRIPTIONS)

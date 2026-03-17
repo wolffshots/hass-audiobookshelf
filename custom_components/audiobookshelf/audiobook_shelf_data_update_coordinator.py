@@ -34,6 +34,9 @@ API_DATA_METHODS = [
     "recently_added",
 ]
 
+# Fast-poll interval for the dedicated media player coordinator (seconds).
+MEDIA_PLAYER_POLL_INTERVAL = 10
+
 
 @dataclass(kw_only=True)
 class AllUsersResponse(_BaseModel):
@@ -94,6 +97,77 @@ class UserProgress:
     duration: float | None
     is_finished: bool
     cover_path: str | None
+
+
+class MediaPlayerSessionCoordinator(DataUpdateCoordinator):
+    """Lightweight coordinator that only polls /api/sessions/open on a fast interval.
+
+    Used exclusively by the media player platform to enable accurate
+    play/pause detection without burdening the main coordinator with
+    high-frequency requests to all endpoints.
+    """
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        api_url: str,
+        token: str,
+        poll_interval: int = MEDIA_PLAYER_POLL_INTERVAL,
+    ) -> None:
+        """Initialize."""
+        self.api_url = api_url
+        self.token = token
+        super().__init__(
+            hass,
+            _LOGGER,
+            name="audiobookshelf_media_player",
+            update_interval=timedelta(seconds=poll_interval),
+        )
+
+    async def _async_update_data(self) -> list[dict[str, Any]]:
+        """Fetch /api/sessions/open and enrich sessions with usernames."""
+        http_session = async_get_clientsession(self.hass)
+        headers = {"Authorization": f"Bearer {self.token}"}
+        try:
+            async with http_session.get(
+                f"{self.api_url.rstrip('/')}/api/sessions/open",
+                headers=headers,
+            ) as resp:
+                sessions_data = await resp.json(content_type=None)
+
+            async with http_session.get(
+                f"{self.api_url.rstrip('/')}/api/users",
+                headers=headers,
+            ) as resp:
+                users_data = await resp.json(content_type=None)
+        except ClientError as err:
+            raise UpdateFailed(f"Error fetching session data: {err}") from err
+
+        users_by_id: dict[str, str] = {
+            str(u.get("id", "")): str(u.get("username", ""))
+            for u in users_data.get("users", [])
+        }
+
+        result = []
+        for session in sessions_data.get("sessions", []):
+            user_id = str(session.get("userId", ""))
+            result.append(
+                {
+                    "id": session.get("id"),
+                    "user_id": user_id,
+                    "username": users_by_id.get(user_id),
+                    "display_title": session.get("displayTitle"),
+                    "display_author": session.get("displayAuthor"),
+                    "current_time": session.get("currentTime"),
+                    "duration": session.get("duration"),
+                    "play_method": session.get("playMethod"),
+                    "media_type": session.get("mediaType"),
+                    "cover_path": session.get("coverPath"),
+                    "library_item_id": session.get("libraryItemId"),
+                    "updated_at": session.get("updatedAt"),
+                }
+            )
+        return result
 
 
 class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
@@ -198,11 +272,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         return result
 
     async def user_progress(self) -> list[UserProgress]:
-        """Fetch per-user reading progress.
-
-        Uses the active session data (already fetched) when available for
-        accuracy, falling back to mediaProgress from the users API.
-        """
+        """Fetch per-user reading progress."""
         http_session = async_get_clientsession(self.hass)
         headers = {"Authorization": f"Bearer {self.token}"}
 
