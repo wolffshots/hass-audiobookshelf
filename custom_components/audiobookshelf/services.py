@@ -9,10 +9,10 @@ from aioaudiobookshelf.schema.library import (
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 
-from .const import DOMAIN
+from .const import DATA_COORDINATOR, DOMAIN
 
 if TYPE_CHECKING:
-    from . import AudiobookShelfDataUpdateCoordinator
+    from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
 
 SERVICE_REMOVE_PROGRESS = "remove_my_progress"
 
@@ -28,7 +28,7 @@ def async_setup_services(hass: HomeAssistant) -> bool:
 
     async def async_handle_remove_progress(call: ServiceCall) -> None:
         """Handle the remove progress service call."""
-        coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN]
+        coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN][DATA_COORDINATOR]
         series_name = call.data.get(SERVICE_ATTRIBUTE_SERIES_NAME)
 
         client = await coordinator.get_client()
