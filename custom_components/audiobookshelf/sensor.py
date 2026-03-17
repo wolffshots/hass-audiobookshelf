@@ -134,9 +134,24 @@ async def async_setup_entry(
 
     entities.append(AudiobookShelfRecentlyAddedSensor(coordinator))
 
-    user_progress_list: list[UserProgress] = coordinator.data.get("user_progress", []) if coordinator.data else []
-    for up in user_progress_list:
-        entities.append(AudiobookShelfUserProgressSensor(coordinator, up.user_id, up.username))
+    existing_users: set[str] = set()
+
+    def _sync_user_progress_entities() -> None:
+        user_progress_list: list[UserProgress] = (
+            coordinator.data.get("user_progress", []) if coordinator.data else []
+        )
+        new_entities = []
+        for up in user_progress_list:
+            if up.user_id not in existing_users:
+                existing_users.add(up.user_id)
+                new_entities.append(
+                    AudiobookShelfUserProgressSensor(coordinator, up.user_id, up.username)
+                )
+        if new_entities:
+            async_add_entities(new_entities)
+
+    _sync_user_progress_entities()
+    coordinator.async_add_listener(_sync_user_progress_entities)
 
     async_add_entities(entities)
 
@@ -267,9 +282,11 @@ class AudiobookShelfUserProgressSensor(CoordinatorEntity, SensorEntity):
     def native_value(self) -> float | None:
         """Return progress as a percentage."""
         progress = self._get_user_progress()
-        if progress and progress.progress is not None:
-            return round(progress.progress * 100, 1)
-        return None
+        if progress is None:
+            return None
+        if progress.progress is None:
+            return 0.0
+        return round(progress.progress * 100, 1)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

@@ -1,5 +1,7 @@
 """Module containing the media player platform for the Audiobookshelf integration."""
 
+import time
+from datetime import datetime, timezone
 from logging import getLogger
 from typing import Any
 
@@ -22,11 +24,17 @@ from custom_components.audiobookshelf.const import DOMAIN, VERSION
 
 _LOGGER = getLogger(__name__)
 
+# ABS has no server-side pause/play API — state is inferred from inactivity.
+# Buttons are present but are no-ops that trigger a coordinator refresh.
 SUPPORTED_FEATURES = (
     MediaPlayerEntityFeature.PLAY
     | MediaPlayerEntityFeature.PAUSE
     | MediaPlayerEntityFeature.SEEK
+    | MediaPlayerEntityFeature.PLAY_MEDIA
 )
+
+# If updatedAt hasn't changed in this many seconds, assume the client is paused.
+PAUSE_INACTIVITY_THRESHOLD_SECONDS = 60
 
 
 async def async_setup_entry(
@@ -38,23 +46,23 @@ async def async_setup_entry(
     coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN]
     tracked: set[str] = set()
 
-    def _add_new_players() -> None:
+    def _sync_players() -> None:
         sessions = coordinator.data.get("active_sessions", []) if coordinator.data else []
         new_entities = []
         for session in sessions:
-            session_id = session.get("id")
-            if session_id and session_id not in tracked:
-                tracked.add(session_id)
-                new_entities.append(AudiobookShelfMediaPlayer(coordinator, session_id))
+            user_id = session.get("user_id")
+            if user_id and str(user_id) not in tracked:
+                tracked.add(str(user_id))
+                new_entities.append(AudiobookShelfMediaPlayer(coordinator, str(user_id)))
         if new_entities:
             async_add_entities(new_entities)
 
-    coordinator.async_add_listener(_add_new_players)
-    _add_new_players()
+    _sync_players()
+    coordinator.async_add_listener(_sync_players)
 
 
 class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
-    """Representation of an active Audiobookshelf playback session."""
+    """Representation of a per-user Audiobookshelf playback session."""
 
     coordinator: AudiobookShelfDataUpdateCoordinator
     _attr_supported_features = SUPPORTED_FEATURES
@@ -63,40 +71,48 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     def __init__(
         self,
         coordinator: AudiobookShelfDataUpdateCoordinator,
-        session_id: str,
+        user_id: str,
     ) -> None:
         """Initialize the media player."""
         super().__init__(coordinator, None)
-        self._session_id = session_id
+        self._user_id = user_id
 
     def _get_session(self) -> dict[str, Any] | None:
-        """Return the current session dict for this player."""
+        """Return the active session for this user."""
         if not self.coordinator.data:
             return None
         for session in self.coordinator.data.get("active_sessions", []):
-            if session.get("id") == self._session_id:
+            if str(session.get("user_id")) == self._user_id:
                 return session
         return None
 
     @property
     def unique_id(self) -> str:
-        """Return a unique ID."""
-        return f"{self.coordinator.api_url}_mediaplayer_{self._session_id}"
+        """Return a unique ID per user."""
+        return f"{self.coordinator.api_url}_mediaplayer_user_{self._user_id}"
 
     @property
     def name(self) -> str:
         """Return the name of this player."""
         session = self._get_session()
-        if session:
-            user_id = session.get("user_id", self._session_id)
-            return f"Audiobookshelf {user_id}"
-        return f"Audiobookshelf {self._session_id}"
+        username = (session.get("username") if session else None) or self._user_id
+        return f"Audiobookshelf {username}"
 
     @property
     def state(self) -> MediaPlayerState:
-        """Return the playback state."""
-        if self._get_session() is None:
+        """Return the playback state.
+
+        ABS has no server-side pause field. We infer pause from inactivity:
+        if updatedAt hasn't been refreshed within PAUSE_INACTIVITY_THRESHOLD_SECONDS,
+        the client is likely paused. Session gone = IDLE.
+        """
+        session = self._get_session()
+        if session is None:
             return MediaPlayerState.IDLE
+        updated_at_ms = session.get("updated_at") or 0
+        elapsed_seconds = (time.time() * 1000 - updated_at_ms) / 1000
+        if elapsed_seconds > PAUSE_INACTIVITY_THRESHOLD_SECONDS:
+            return MediaPlayerState.PAUSED
         return MediaPlayerState.PLAYING
 
     @property
@@ -113,25 +129,48 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     @property
     def media_duration(self) -> float | None:
-        """Return the duration of current media in seconds."""
+        """Return the duration in seconds."""
         session = self._get_session()
-        return session.get("duration") if session else None
+        if not session:
+            return None
+        duration = session.get("duration")
+        return float(duration) if duration is not None else None
 
     @property
     def media_position(self) -> float | None:
         """Return the current playback position in seconds."""
         session = self._get_session()
-        return session.get("current_time") if session else None
+        if not session:
+            return None
+        current_time = session.get("current_time")
+        return float(current_time) if current_time is not None else None
 
     @property
-    def media_image_url(self) -> str | None:
-        """Return the cover art URL."""
+    def media_position_updated_at(self) -> datetime | None:
+        """Return when the position was last updated as a UTC datetime.
+
+        HA uses this to extrapolate the position forward between polls.
+        We return None when paused so HA does not extrapolate.
+        """
+        if self.state != MediaPlayerState.PLAYING:
+            return None
         session = self._get_session()
         if not session:
             return None
-        cover_path = session.get("cover_path")
-        if cover_path:
-            return f"{self.coordinator.api_url}{cover_path}"
+        updated_at_ms = session.get("updated_at")
+        if updated_at_ms is None:
+            return None
+        return datetime.fromtimestamp(updated_at_ms / 1000, tz=timezone.utc)
+
+    @property
+    def media_image_url(self) -> str | None:
+        """Return the cover art URL via ABS API."""
+        session = self._get_session()
+        if not session:
+            return None
+        item_id = session.get("library_item_id")
+        if item_id:
+            return f"{self.coordinator.api_url.rstrip('/')}/api/items/{item_id}/cover"
         return None
 
     @property
@@ -143,10 +182,29 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         return {
             "session_id": session.get("id"),
             "user_id": session.get("user_id"),
-            "play_method": session.get("play_method"),
+            "username": session.get("username"),
+            "play_method": str(session.get("play_method")),
             "media_type": session.get("media_type"),
             "updated_at": session.get("updated_at"),
+            "current_time_seconds": session.get("current_time"),
+            "duration_seconds": session.get("duration"),
         }
+
+    async def async_media_play(self) -> None:
+        """No server-side play in ABS — refresh coordinator to re-evaluate state."""
+        await self.coordinator.async_request_refresh()
+
+    async def async_media_pause(self) -> None:
+        """No server-side pause in ABS — refresh coordinator to re-evaluate state."""
+        await self.coordinator.async_request_refresh()
+
+    async def async_media_seek(self, position: float) -> None:
+        """Seek is not controllable server-side in ABS."""
+        _LOGGER.debug(
+            "Seek to %.1fs requested for user %s (not supported server-side)",
+            position,
+            self._user_id,
+        )
 
     @property
     def device_info(self) -> DeviceInfo | None:
