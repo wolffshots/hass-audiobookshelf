@@ -1,6 +1,5 @@
 """Module containing the media player platform for the Audiobookshelf integration."""
 
-import time
 from datetime import datetime, timezone
 from logging import getLogger
 from typing import Any
@@ -24,17 +23,15 @@ from custom_components.audiobookshelf.const import DOMAIN, VERSION
 
 _LOGGER = getLogger(__name__)
 
-# ABS has no server-side pause/play API — state is inferred from inactivity.
-# Buttons are present but are no-ops that trigger a coordinator refresh.
+# ABS has no server-side pause/play API.
+# State is determined by comparing updatedAt between consecutive polls:
+# if updatedAt changed since the last poll -> PLAYING, else -> PAUSED.
 SUPPORTED_FEATURES = (
     MediaPlayerEntityFeature.PLAY
     | MediaPlayerEntityFeature.PAUSE
     | MediaPlayerEntityFeature.SEEK
     | MediaPlayerEntityFeature.PLAY_MEDIA
 )
-
-# If updatedAt hasn't changed in this many seconds, assume the client is paused.
-PAUSE_INACTIVITY_THRESHOLD_SECONDS = 60
 
 
 async def async_setup_entry(
@@ -76,6 +73,10 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         """Initialize the media player."""
         super().__init__(coordinator, None)
         self._user_id = user_id
+        # Tracks the updatedAt value from the previous poll to detect changes.
+        self._last_updated_at: int | None = None
+        # Cached state so we can hold PAUSED until updatedAt changes again.
+        self._cached_state: MediaPlayerState = MediaPlayerState.IDLE
 
     def _get_session(self) -> dict[str, Any] | None:
         """Return the active session for this user."""
@@ -85,6 +86,30 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
             if str(session.get("user_id")) == self._user_id:
                 return session
         return None
+
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator.
+
+        Called on every poll. We compare the current updatedAt against the
+        previous poll's value to determine if the client is actively playing.
+        """
+        session = self._get_session()
+        if session is None:
+            self._cached_state = MediaPlayerState.IDLE
+            self._last_updated_at = None
+        else:
+            current_updated_at = session.get("updated_at")
+            if self._last_updated_at is None:
+                # First poll for this session — assume playing until proven otherwise.
+                self._cached_state = MediaPlayerState.PLAYING
+            elif current_updated_at != self._last_updated_at:
+                # updatedAt changed since last poll — client is actively syncing.
+                self._cached_state = MediaPlayerState.PLAYING
+            else:
+                # updatedAt identical across two consecutive polls — client is paused.
+                self._cached_state = MediaPlayerState.PAUSED
+            self._last_updated_at = current_updated_at
+        super()._handle_coordinator_update()
 
     @property
     def unique_id(self) -> str:
@@ -100,20 +125,8 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     @property
     def state(self) -> MediaPlayerState:
-        """Return the playback state.
-
-        ABS has no server-side pause field. We infer pause from inactivity:
-        if updatedAt hasn't been refreshed within PAUSE_INACTIVITY_THRESHOLD_SECONDS,
-        the client is likely paused. Session gone = IDLE.
-        """
-        session = self._get_session()
-        if session is None:
-            return MediaPlayerState.IDLE
-        updated_at_ms = session.get("updated_at") or 0
-        elapsed_seconds = (time.time() * 1000 - updated_at_ms) / 1000
-        if elapsed_seconds > PAUSE_INACTIVITY_THRESHOLD_SECONDS:
-            return MediaPlayerState.PAUSED
-        return MediaPlayerState.PLAYING
+        """Return the cached playback state determined on last coordinator update."""
+        return self._cached_state
 
     @property
     def media_title(self) -> str | None:
@@ -150,9 +163,9 @@ class AudiobookShelfMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         """Return when the position was last updated as a UTC datetime.
 
         HA uses this to extrapolate the position forward between polls.
-        We return None when paused so HA does not extrapolate.
+        Returning None when paused prevents HA from extrapolating incorrectly.
         """
-        if self.state != MediaPlayerState.PLAYING:
+        if self._cached_state != MediaPlayerState.PLAYING:
             return None
         session = self._get_session()
         if not session:
