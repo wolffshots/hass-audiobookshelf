@@ -3,3 +3,6 @@ ruff==0.12.11
 pytest==8.4.1
 aioaudiobookshelf==0.1.24
 mypy==1.17.1
+# aiodns declares pycares>=4.0.0, but pycares 5.x changed Channel.getaddrinfo()
+# and breaks every DNS lookup in Home Assistant. Pin until aiodns supports it.
+pycares<5
