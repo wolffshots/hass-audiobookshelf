@@ -14,6 +14,7 @@ ignore = [
     "COM812", # incompatible with formatter
     "ISC001", # incompatible with formatter
     "ERA001", # commented code isn't always bad
+    "CPY001", # licensing is covered by LICENSE, not per-file headers
 ]
 
 [lint.flake8-pytest-style]
