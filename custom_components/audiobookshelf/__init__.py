@@ -12,14 +12,14 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 
 from custom_components.audiobookshelf.config_flow import validate_config, verify_config
 
 from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
 from .const import DOMAIN, PLATFORMS
-from .services import async_setup_services
+from .services import async_setup_services, async_unload_services
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -64,6 +64,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     errors.update(await verify_config(entry.data.copy()))
     if len(errors.keys()) > 0:
         _LOGGER.debug("Config validation errors: %s", errors)
+        if errors.get("base") in ("api_auth_error", "not_admin"):
+            raise ConfigEntryAuthFailed(errors)
         raise ConfigEntryNotReady(errors)
 
     scan_interval = int(entry.data[CONF_SCAN_INTERVAL])
@@ -71,6 +73,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     token = entry.data[CONF_API_KEY]
     coordinator = AudiobookShelfDataUpdateCoordinator(
         hass,
+        config_entry=entry,
         scan_interval=scan_interval,
         api_url=api_url,
         token=token,
@@ -87,4 +90,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        async_unload_services(hass)
+        hass.data.pop(DOMAIN, None)
+    return unload_ok

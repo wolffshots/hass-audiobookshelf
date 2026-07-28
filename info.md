@@ -15,6 +15,7 @@
 | `libraries`       | `sensor`         | Number of libraries on the server                      |
 | `users`           | `sensor`         | Number of users on the server                          |
 | `online_users`    | `sensor`         | Number of online users on the server                   |
+| `auth_sessions`   | `sensor`         | Number of active authentication sessions for the configured user (requires Audiobookshelf v2.36.0+) |
 
 ## It also adds the following library specific sensors (for each library that it finds during setup):
 | Entity             | Type           | Description                                              |
@@ -53,14 +54,20 @@
 
 ## Configuration
 
-### Getting an access token
+### Getting an API key
 
-1. Log in as the admin user
-2. Go to Settings > Users
-3. Click on the account
-4. Copy the API Token from beneath the user's name
+The integration reads server-wide user and session data, so the credential has to belong to an **admin** user.
 
-For more info on what the token can be used for see: https://api.audiobookshelf.org/#introduction
+1. Log in as an admin user
+2. Go to Settings > API Keys
+3. Create a new API key (give it a name and, optionally, an expiry)
+4. Copy the key straight away - it is only shown once, when it is created
+
+Use that key as the `API key` when setting up the integration.
+
+**API Keys require Audiobookshelf v2.26.0 or newer.** On older servers you still have to use the legacy API token: go to Settings > Users, click on the admin account and copy the token from beneath the user's name. Legacy tokens are deprecated - from v2.26.0 Audiobookshelf labels that field "Legacy API Token" and warns that it will be removed in the future - so move to an API key once your server has been updated.
+
+For more info on what the key can be used for see: https://api.audiobookshelf.org/#introduction
 
 ### Setting up via the UI
 

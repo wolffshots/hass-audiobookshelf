@@ -42,10 +42,11 @@ def async_setup_services(hass: HomeAssistant) -> bool:
                     if isinstance(lib_item_minified, LibraryItemMinifiedPodcast):
                         pass
                     if isinstance(lib_item_minified, LibraryItemMinifiedBook):
-                        if lib_item_minified.media.metadata.series_name is str and (
-                            series_name in lib_item_minified.media.metadata.series_name
-                            or series_name
-                            == lib_item_minified.media.metadata.series_name
+                        item_series_name = lib_item_minified.media.metadata.series_name
+                        if (
+                            isinstance(item_series_name, str)
+                            and isinstance(series_name, str)
+                            and series_name in item_series_name
                         ):
                             media_progress = await client.get_my_media_progress(
                                 item_id=lib_item_minified.id_

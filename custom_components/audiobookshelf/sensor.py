@@ -64,6 +64,13 @@ SENSOR_DESCRIPTIONS: Final[tuple[AudiobookShelfSensorEntityDescription, ...]] = 
         native_unit_of_measurement="sessions",
     ),
     AudiobookShelfSensorEntityDescription(
+        key="count_auth_sessions",
+        name="Audiobookshelf Auth Sessions",
+        icon="mdi:shield-account-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="sessions",
+    ),
+    AudiobookShelfSensorEntityDescription(
         key="count_libraries",
         name="Audiobookshelf Libraries",
         icon="mdi:bookshelf",
@@ -153,7 +160,10 @@ class AudiobookShelfSensor(CoordinatorEntity, SensorEntity):
         native_value = self.coordinator.data.get(self.entity_description.key)
         if self.entity_description.key_context is not None and native_value is not None:
             native_value = native_value[self.entity_description.key_context]
-        if self.entity_description.key_context_method is not None:
+        if (
+            self.entity_description.key_context_method is not None
+            and native_value is not None
+        ):
             native_value = getattr(
                 native_value, self.entity_description.key_context_method
             )
