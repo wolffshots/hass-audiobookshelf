@@ -11,12 +11,15 @@ from aioaudiobookshelf import (
     SessionConfiguration,
     get_admin_client_by_token,
 )
+from aioaudiobookshelf.exceptions import AbsAuthError, AbsError, NotFoundError
 from aioaudiobookshelf.schema import _BaseModel
 from aioaudiobookshelf.schema.library import Library
 from aioaudiobookshelf.schema.session import PlaybackSession
 from aioaudiobookshelf.schema.user import _UserBase
 from aiohttp import ClientError
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from mashumaro.types import Alias
@@ -28,6 +31,7 @@ API_DATA_METHODS = [
     "count_users_online",
     "count_open_sessions",
     "count_recent_sessions",
+    "count_auth_sessions",
     "library_stats",
 ]
 
@@ -57,14 +61,19 @@ class OpenSessionsResponse(_BaseModel):
     ) -> list[PlaybackSession]:
         """Filter sessions that have been updated recently."""
         current_time_ms = int(time.time() * 1000)
-        _LOGGER.info("Current time in ms: %s", current_time_ms)
-        _LOGGER.info("Sessions: %s", self.sessions)
         return [
             session
             for session in self.sessions
             if hasattr(session, "updated_at")
             and (current_time_ms - session.updated_at) < (max_idle_seconds * 1000)
         ]
+
+
+@dataclass(kw_only=True)
+class AuthSessionsResponse(_BaseModel):
+    """AuthSessionsResponse."""
+
+    total: int
 
 
 @dataclass(kw_only=True)
@@ -82,11 +91,16 @@ class LibraryStats(_BaseModel):
 class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Audiobookshelf data from the API."""
 
-    _client: AdminClient = None  # type: ignore[import-untyped]
+    _client: AdminClient | None = None
     api_url: str = ""
 
     def __init__(
-        self, hass: HomeAssistant, scan_interval: int, api_url: str, token: str
+        self,
+        hass: HomeAssistant,
+        config_entry: ConfigEntry,
+        scan_interval: int,
+        api_url: str,
+        token: str,
     ) -> None:
         """Initialize."""
         self.api_url = api_url
@@ -95,6 +109,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=config_entry,
             name="audiobookshelf",
             update_interval=timedelta(seconds=scan_interval),
         )
@@ -122,7 +137,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         """Fetch and count active users from API."""
         response_cls: type[AllUsersResponse] = AllUsersResponse
         client = await self.get_client()
-        response = await client._get("/api/users")  # noqa: SLF001
+        response = await client._get("api/users")  # noqa: SLF001
         users = response_cls.from_json(response).users
         return len(users)
 
@@ -139,6 +154,15 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         response = await client._get("api/sessions/open")  # noqa: SLF001
         sessions = OpenSessionsResponse.from_json(response).sessions
         return len(sessions)
+
+    async def count_auth_sessions(self) -> int | None:
+        """Fetch and count auth sessions from API, None if server lacks endpoint."""
+        client = await self.get_client()
+        try:
+            response = await client._get("api/me/sessions")  # noqa: SLF001
+        except NotFoundError:  # endpoint requires Audiobookshelf v2.36.0 or newer
+            return None
+        return AuthSessionsResponse.from_json(response).total
 
     async def count_users_online(self) -> int:
         """Fetch and count users online from API."""
@@ -166,7 +190,10 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
                 data[method] = await getattr(self, method)()
                 _LOGGER.debug("Fetched %s", data[method])
             data["count_libraries"] = len(data["library_stats"].keys())
-        except ClientError as err:
+        except AbsAuthError as err:
+            msg = "Authentication with Audiobookshelf failed"
+            raise ConfigEntryAuthFailed(msg) from err
+        except (AbsError, ClientError) as err:
             msg = "Error fetching data"
             raise UpdateFailed(msg) from err
         else:

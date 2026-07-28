@@ -8,6 +8,13 @@
                     "api_key": "API Key",
                     "scan_interval": "Update interval in seconds (defaults to 300s/5min)"
                 }
+            },
+            "reauth_confirm": {
+                "title": "Reauthenticate Audiobookshelf",
+                "description": "The Audiobookshelf API key is no longer valid. Enter a new API key to reconnect.",
+                "data": {
+                    "api_key": "API Key"
+                }
             }
         },
         "error": {
@@ -15,10 +22,13 @@
             "api_key_invalid": "API key is missing or invalid",
             "url_invalid": "URL is missing or invalid",
             "scan_interval_invalid": "Scan interval is missing or invalid",
-            "url_protocol_missing": "URL must start with http:// or https://"
+            "url_protocol_missing": "URL must start with http:// or https://",
+            "cannot_connect": "Failed to connect",
+            "not_admin": "The API key must belong to an admin user"
         },
         "abort": {
-            "already_configured": "Device is already configured"
+            "already_configured": "Device is already configured",
+            "reauth_successful": "Re-authentication was successful"
         }
     },
     "services": {
