@@ -3,6 +3,8 @@
 from logging import getLogger
 from typing import TYPE_CHECKING
 
+import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
 from aioaudiobookshelf.schema.library import (
     LibraryItemMinifiedBook,
     LibraryItemMinifiedPodcast,
@@ -20,6 +22,19 @@ SERVICE_ATTRIBUTE_SERIES_NAME = "series_name"
 
 SUPPORTED_SERVICES = (SERVICE_REMOVE_PROGRESS,)
 
+# The match is a substring test against every item in every library, and the
+# deletion cannot be undone, so an empty or blank name must never reach the
+# handler - it would match every book on the server.
+SERVICE_SCHEMAS = {
+    SERVICE_REMOVE_PROGRESS: vol.Schema(
+        {
+            vol.Required(SERVICE_ATTRIBUTE_SERIES_NAME): vol.All(
+                cv.string, vol.Strip, vol.Length(min=1)
+            ),
+        }
+    ),
+}
+
 _LOGGER = getLogger(__name__)
 
 
@@ -29,7 +44,7 @@ def async_setup_services(hass: HomeAssistant) -> bool:
     async def async_handle_remove_progress(call: ServiceCall) -> None:
         """Handle the remove progress service call."""
         coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN]
-        series_name = call.data.get(SERVICE_ATTRIBUTE_SERIES_NAME)
+        series_name: str = call.data[SERVICE_ATTRIBUTE_SERIES_NAME].casefold()
 
         client = await coordinator.get_client()
         libraries = await client.get_all_libraries()
@@ -45,8 +60,7 @@ def async_setup_services(hass: HomeAssistant) -> bool:
                         item_series_name = lib_item_minified.media.metadata.series_name
                         if (
                             isinstance(item_series_name, str)
-                            and isinstance(series_name, str)
-                            and series_name in item_series_name
+                            and series_name in item_series_name.casefold()
                         ):
                             media_progress = await client.get_my_media_progress(
                                 item_id=lib_item_minified.id_
@@ -75,7 +89,9 @@ def async_setup_services(hass: HomeAssistant) -> bool:
         SERVICE_REMOVE_PROGRESS: async_handle_remove_progress,
     }
     for service in SUPPORTED_SERVICES:
-        hass.services.async_register(DOMAIN, service, services[service])
+        hass.services.async_register(
+            DOMAIN, service, services[service], schema=SERVICE_SCHEMAS[service]
+        )
 
     return True
 
