@@ -1,97 +1,73 @@
 """Custom component for Audiobookshelf."""
 
 import logging
+from collections.abc import Mapping
+from typing import Any
 
-import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_API_KEY,
-    CONF_PASSWORD,
-    CONF_SCAN_INTERVAL,
-    CONF_URL,
-    CONF_USERNAME,
-)
+from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
-
-from custom_components.audiobookshelf.config_flow import validate_config, verify_config
+from homeassistant.helpers.typing import ConfigType
 
 from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
 from .const import DOMAIN, PLATFORMS
-from .services import async_setup_services, async_unload_services
+from .services import async_setup_services
 
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.Schema(
-            {
-                vol.Required(CONF_USERNAME): cv.string,
-                vol.Required(CONF_PASSWORD): cv.string,
-                vol.Required(CONF_URL): cv.string,
-                vol.Optional(CONF_SCAN_INTERVAL, default=300): cv.positive_int,
-            }
-        )
-    },
-    extra=vol.ALLOW_EXTRA,
-)
+type AudiobookshelfConfigEntry = ConfigEntry[AudiobookShelfDataUpdateCoordinator]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def clean_config(data: dict[str, str]) -> dict[str, str]:
-    """Remove the api key from config."""
-    try:
-        if CONF_API_KEY in data:
-            data[CONF_API_KEY] = "<redacted>"
-    except Exception as e:
-        _LOGGER.exception("Failed to clean config, most likely not valid", exc_info=e)
-    return data
+def clean_config(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a copy of the config with the API key masked."""
+    # Builds a new mapping rather than editing in place: the previous version
+    # swallowed any exception and returned the argument untouched, so its
+    # failure mode was to log the credential it exists to hide.
+    return {
+        key: "<redacted>" if key == CONF_API_KEY else value
+        for key, value in data.items()
+    }
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa: ARG001
+    """Register the Audiobookshelf services."""
+    # Registering here rather than per entry keeps the actions resolvable
+    # while the entry is unloaded or failed, so automations referencing them
+    # still validate instead of failing with an unknown service.
+    async_setup_services(hass)
+    return True
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: AudiobookshelfConfigEntry
+) -> bool:
     """Set up Audiobookshelf from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
+    _LOGGER.debug("Setting up Audiobookshelf with config: %s", clean_config(entry.data))
 
-    if entry.data is None:
-        error_message = "Configuration not found"
-        raise ConfigEntryNotReady(error_message)
-
-    _LOGGER.debug(
-        "Setting up Audiobookshelf with config: %s", clean_config(entry.data.copy())
-    )
-
-    errors = validate_config(entry.data.copy())
-    errors.update(await verify_config(entry.data.copy()))
-    if len(errors.keys()) > 0:
-        _LOGGER.debug("Config validation errors: %s", errors)
-        if errors.get("base") in ("api_auth_error", "not_admin"):
-            raise ConfigEntryAuthFailed(errors)
-        raise ConfigEntryNotReady(errors)
-
-    scan_interval = int(entry.data[CONF_SCAN_INTERVAL])
-    api_url = entry.data[CONF_URL]
-    token = entry.data[CONF_API_KEY]
     coordinator = AudiobookShelfDataUpdateCoordinator(
         hass,
         config_entry=entry,
-        scan_interval=scan_interval,
-        api_url=api_url,
-        token=token,
+        scan_interval=int(entry.data[CONF_SCAN_INTERVAL]),
+        api_url=entry.data[CONF_URL],
+        token=entry.data[CONF_API_KEY],
     )
 
+    # This doubles as the setup-time connection test, raising
+    # ConfigEntryNotReady or ConfigEntryAuthFailed as appropriate, so no
+    # separate probe over its own session is needed.
     await coordinator.async_config_entry_first_refresh()
 
-    hass.data[DOMAIN] = coordinator
+    entry.runtime_data = coordinator
 
-    async_setup_services(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: AudiobookshelfConfigEntry
+) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        async_unload_services(hass)
-        hass.data.pop(DOMAIN, None)
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

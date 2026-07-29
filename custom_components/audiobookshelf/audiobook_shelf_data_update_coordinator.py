@@ -11,7 +11,12 @@ from aioaudiobookshelf import (
     SessionConfiguration,
     get_admin_client_by_token,
 )
-from aioaudiobookshelf.exceptions import AbsAuthError, AbsError, NotFoundError
+from aioaudiobookshelf.exceptions import (
+    AbsAuthError,
+    AbsError,
+    BadUserError,
+    NotFoundError,
+)
 from aioaudiobookshelf.schema import _BaseModel
 from aioaudiobookshelf.schema.library import Library
 from aioaudiobookshelf.schema.session import PlaybackSession
@@ -27,15 +32,6 @@ from mashumaro.types import Alias
 from .const import REQUEST_TIMEOUT
 
 _LOGGER = getLogger(__name__)
-
-API_DATA_METHODS = [
-    "count_users",
-    "count_users_online",
-    "count_open_sessions",
-    "count_recent_sessions",
-    "count_auth_sessions",
-    "library_stats",
-]
 
 
 @dataclass(kw_only=True)
@@ -145,19 +141,14 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         users = response_cls.from_json(response).users
         return len(users)
 
-    async def count_recent_sessions(self) -> int:
-        """Fetch and count open sessions with recent update time from API."""
+    async def open_sessions(self) -> OpenSessionsResponse:
+        """Fetch open sessions from API."""
+        # Fetched once per poll and used for both the open and recent counts.
+        # Fetching twice made it possible for a session ending between the two
+        # calls to report more recent sessions than open ones.
         client = await self.get_client()
         response = await client._get("api/sessions/open")  # noqa: SLF001
-        sessions = OpenSessionsResponse.from_json(response).filter_active_sessions()
-        return len(sessions)
-
-    async def count_open_sessions(self) -> int:
-        """Fetch and count open sessions from API."""
-        client = await self.get_client()
-        response = await client._get("api/sessions/open")  # noqa: SLF001
-        sessions = OpenSessionsResponse.from_json(response).sessions
-        return len(sessions)
+        return OpenSessionsResponse.from_json(response)
 
     async def count_auth_sessions(self) -> int | None:
         """Fetch and count auth sessions from API, None if server lacks endpoint."""
@@ -190,19 +181,25 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict:
         """Fetch data from API endpoint."""
-        data = {}
-        method = ""
+        step = "users"
         try:
-            for method in API_DATA_METHODS:
-                _LOGGER.debug("Fetched %s", method)
-                data[method] = await getattr(self, method)()
-                _LOGGER.debug("Fetched %s", data[method])
-            data["count_libraries"] = len(data["library_stats"].keys())
+            count_users = await self.count_users()
+            step = "users online"
+            count_users_online = await self.count_users_online()
+            step = "open sessions"
+            open_sessions = await self.open_sessions()
+            step = "auth sessions"
+            count_auth_sessions = await self.count_auth_sessions()
+            step = "library stats"
+            library_stats = await self.library_stats()
+        except BadUserError as err:
+            msg = "The Audiobookshelf API key must belong to an admin user"
+            raise ConfigEntryAuthFailed(msg) from err
         except AbsAuthError as err:
             msg = "Authentication with Audiobookshelf failed"
             raise ConfigEntryAuthFailed(msg) from err
         except (AbsError, ClientError) as err:
-            msg = "Error fetching data"
+            msg = f"Error fetching {step} from Audiobookshelf"
             raise UpdateFailed(msg) from err
         except (ValueError, LookupError) as err:
             # Every from_json call raises mashumaro's MissingField (LookupError)
@@ -210,7 +207,17 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
             # body raises JSONDecodeError (ValueError). None of these are
             # AbsError or ClientError, so without this they escape as an
             # unhandled exception and log a traceback on every poll.
-            msg = f"Unexpected response from Audiobookshelf fetching {method}"
+            msg = f"Unexpected response from Audiobookshelf fetching {step}"
             raise UpdateFailed(msg) from err
         else:
+            data = {
+                "count_users": count_users,
+                "count_users_online": count_users_online,
+                "count_open_sessions": len(open_sessions.sessions),
+                "count_recent_sessions": len(open_sessions.filter_active_sessions()),
+                "count_auth_sessions": count_auth_sessions,
+                "library_stats": library_stats,
+                "count_libraries": len(library_stats),
+            }
+            _LOGGER.debug("Fetched Audiobookshelf data: %s", data)
             return data

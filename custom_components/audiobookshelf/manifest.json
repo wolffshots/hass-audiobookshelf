@@ -7,9 +7,12 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/wolffshots/hass-audiobookshelf",
-  "integration_type": "device",
+  "integration_type": "service",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/wolffshots/hass-audiobookshelf/issues",
+  "loggers": [
+    "aioaudiobookshelf"
+  ],
   "requirements": [
     "aioaudiobookshelf"
   ],

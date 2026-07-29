@@ -10,20 +10,23 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfInformation
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.audiobookshelf import clean_config
+from custom_components.audiobookshelf import AudiobookshelfConfigEntry, clean_config
 from custom_components.audiobookshelf.audiobook_shelf_data_update_coordinator import (
     AudiobookShelfDataUpdateCoordinator,
 )
 from custom_components.audiobookshelf.const import DOMAIN, VERSION
 
 _LOGGER = getLogger(__name__)
+
+# Read-only platform: nothing here writes to the server, so there is no reason
+# to serialise updates.
+PARALLEL_UPDATES = 0
 
 
 @dataclass(frozen=True)
@@ -81,14 +84,14 @@ SENSOR_DESCRIPTIONS: Final[tuple[AudiobookShelfSensorEntityDescription, ...]] = 
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
+    hass: HomeAssistant,  # noqa: ARG001
+    entry: AudiobookshelfConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    _LOGGER.debug("Configuration data: %s", clean_config(entry.data.copy()))
+    _LOGGER.debug("Configuration data: %s", clean_config(entry.data))
 
-    coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN]
+    coordinator = entry.runtime_data
 
     sensors_descriptions: list[AudiobookShelfSensorEntityDescription] = []
     sensors_descriptions.extend(SENSOR_DESCRIPTIONS)
