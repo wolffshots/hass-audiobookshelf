@@ -8,15 +8,17 @@ from typing import TYPE_CHECKING, Any
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from aioaudiobookshelf import SessionConfiguration, get_admin_client_by_token
-from aioaudiobookshelf.exceptions import AbsAuthError, BadUserError
-from aiohttp import ClientError, ClientSession
+from aioaudiobookshelf.exceptions import AbsAuthError, AbsError, BadUserError
+from aiohttp import ClientError
 from homeassistant import config_entries
 from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from homeassistant.config_entries import ConfigFlowResult
+    from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, REQUEST_TIMEOUT
 
@@ -37,25 +39,33 @@ def validate_config(data: dict[str, Any]) -> dict:
     return errors
 
 
-async def verify_config(data: dict[str, str]) -> dict:
+async def verify_config(hass: HomeAssistant, data: dict[str, str]) -> dict:
     """Verify the configuration by testing the API connection."""
     try:
-        async with ClientSession() as session:
-            await get_admin_client_by_token(
-                session_config=SessionConfiguration(
-                    session=session,
-                    url=data[CONF_URL],
-                    token=data[CONF_API_KEY],
-                    logger=_LOGGER,
-                    pagination_items_per_page=30,
-                    timeout=REQUEST_TIMEOUT,
-                ),
-            )
+        await get_admin_client_by_token(
+            session_config=SessionConfiguration(
+                session=async_get_clientsession(hass),
+                url=data[CONF_URL],
+                token=data[CONF_API_KEY],
+                logger=_LOGGER,
+                pagination_items_per_page=30,
+                timeout=REQUEST_TIMEOUT,
+            ),
+        )
     except BadUserError:
+        # A subclass of AbsAuthError, so this clause has to come first.
         return {"base": "not_admin"}
     except AbsAuthError:
         return {"base": "api_auth_error"}
-    except (ClientError, TimeoutError):
+    except (AbsError, ClientError, TimeoutError):
+        # AbsError covers the case of a URL that resolves but is not an
+        # Audiobookshelf server, which otherwise escaped the flow and showed
+        # the user "Unknown error occurred".
+        return {"base": "cannot_connect"}
+    except (ValueError, LookupError):
+        # A login response that is not the expected JSON, which is what a
+        # captive portal or SSO page in front of the server returns.
+        _LOGGER.exception("Unexpected response from %s", data[CONF_URL])
         return {"base": "cannot_connect"}
     else:
         return {}
@@ -75,7 +85,7 @@ class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             errors.update(validate_config(user_input))
             if not errors:
-                errors.update(await verify_config(user_input))
+                errors.update(await verify_config(self.hass, user_input))
             if errors:
                 return self.async_show_form(
                     step_id="user",
@@ -134,7 +144,8 @@ class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             errors = await verify_config(
-                {**reauth_entry.data, CONF_API_KEY: user_input[CONF_API_KEY]}
+                self.hass,
+                {**reauth_entry.data, CONF_API_KEY: user_input[CONF_API_KEY]},
             )
             if not errors:
                 return self.async_update_reload_and_abort(
