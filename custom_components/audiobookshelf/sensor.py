@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import UnitOfInformation
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -20,7 +20,7 @@ from custom_components.audiobookshelf import AudiobookshelfConfigEntry, clean_co
 from custom_components.audiobookshelf.audiobook_shelf_data_update_coordinator import (
     AudiobookShelfDataUpdateCoordinator,
 )
-from custom_components.audiobookshelf.const import DOMAIN, VERSION
+from custom_components.audiobookshelf.const import DOMAIN
 
 _LOGGER = getLogger(__name__)
 
@@ -40,42 +40,42 @@ class AudiobookShelfSensorEntityDescription(SensorEntityDescription):
 SENSOR_DESCRIPTIONS: Final[tuple[AudiobookShelfSensorEntityDescription, ...]] = (
     AudiobookShelfSensorEntityDescription(
         key="count_users",
-        name="Audiobookshelf Users",
+        translation_key="count_users",
         icon="mdi:account-multiple-outline",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="users",
     ),
     AudiobookShelfSensorEntityDescription(
         key="count_users_online",
-        name="Audiobookshelf Users Online",
+        translation_key="count_users_online",
         icon="mdi:account-multiple",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="users",
     ),
     AudiobookShelfSensorEntityDescription(
         key="count_open_sessions",
-        name="Audiobookshelf Open Sessions",
+        translation_key="count_open_sessions",
         icon="mdi:account-music-outline",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="sessions",
     ),
     AudiobookShelfSensorEntityDescription(
         key="count_recent_sessions",
-        name="Audiobookshelf Recent Sessions",
+        translation_key="count_recent_sessions",
         icon="mdi:account-music",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="sessions",
     ),
     AudiobookShelfSensorEntityDescription(
         key="count_auth_sessions",
-        name="Audiobookshelf Auth Sessions",
+        translation_key="count_auth_sessions",
         icon="mdi:shield-account-outline",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="sessions",
     ),
     AudiobookShelfSensorEntityDescription(
         key="count_libraries",
-        name="Audiobookshelf Libraries",
+        translation_key="count_libraries",
         icon="mdi:bookshelf",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="libraries",
@@ -107,7 +107,8 @@ async def async_setup_entry(
                     key="library_stats",
                     key_context=library.id_,
                     key_context_method="total_size",
-                    name=f"Audiobookshelf {library.name} Size",
+                    translation_key="library_size",
+                    translation_placeholders={"library": library.name},
                     icon="mdi:harddisk",
                     device_class=SensorDeviceClass.DATA_SIZE,
                     state_class=SensorStateClass.MEASUREMENT,
@@ -119,7 +120,8 @@ async def async_setup_entry(
                     key="library_stats",
                     key_context=library.id_,
                     key_context_method="total_items",
-                    name=f"Audiobookshelf {library.name} Items",
+                    translation_key="library_items",
+                    translation_placeholders={"library": library.name},
                     icon="mdi:book-multiple",
                     state_class=SensorStateClass.MEASUREMENT,
                     native_unit_of_measurement="items",
@@ -128,7 +130,8 @@ async def async_setup_entry(
                     key="library_stats",
                     key_context=library.id_,
                     key_context_method="total_duration",
-                    name=f"Audiobookshelf {library.name} Duration",
+                    translation_key="library_duration",
+                    translation_placeholders={"library": library.name},
                     icon="mdi:timer-outline",
                     device_class=SensorDeviceClass.DURATION,
                     state_class=SensorStateClass.MEASUREMENT,
@@ -139,7 +142,7 @@ async def async_setup_entry(
             ]
         )
     entities = [
-        AudiobookShelfSensor(coordinator, sensor_description)
+        AudiobookShelfSensor(coordinator, entry, sensor_description)
         for sensor_description in sensors_descriptions
     ]
     async_add_entities(entities)
@@ -149,10 +152,12 @@ class AudiobookShelfSensor(CoordinatorEntity, SensorEntity):
     """Representation of a sensor."""
 
     coordinator: AudiobookShelfDataUpdateCoordinator
+    _attr_has_entity_name = True
 
     def __init__(
         self,
         coordinator: AudiobookShelfDataUpdateCoordinator,
+        entry: AudiobookshelfConfigEntry,
         sensor_description: AudiobookShelfSensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
@@ -160,6 +165,20 @@ class AudiobookShelfSensor(CoordinatorEntity, SensorEntity):
             sensor_description
         )
         super().__init__(coordinator, None)
+        # Keyed on the entry id rather than the API URL, which the user can
+        # edit. Any change to this format needs a matching async_migrate_entry.
+        self._attr_unique_id = (
+            f"{entry.entry_id}_{sensor_description.key}"
+            f"_{sensor_description.key_context}"
+            f"_{sensor_description.key_context_method}"
+        )
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            entry_type=DeviceEntryType.SERVICE,
+            name="Audiobookshelf",
+            manufacturer="advplyr",
+            configuration_url=coordinator.api_url,
+        )
 
     @property
     def available(self) -> bool:
@@ -187,24 +206,3 @@ class AudiobookShelfSensor(CoordinatorEntity, SensorEntity):
                 native_value, self.entity_description.key_context_method, None
             )
         return native_value
-
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device information about this entity."""
-        return {
-            "identifiers": {(DOMAIN, self.coordinator.api_url)},
-            "name": "Audiobookshelf",
-            "manufacturer": "advplyr",
-            "sw_version": VERSION,
-            "configuration_url": self.coordinator.api_url,
-        }
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID."""
-        # Create unique IDs for each sensor that include the API URL
-        url = self.coordinator.api_url
-        key = self.entity_description.key
-        key_context = self.entity_description.key_context
-        key_context_method = self.entity_description.key_context_method
-        return f"{url}_{key}_{key_context}_{key_context_method}"

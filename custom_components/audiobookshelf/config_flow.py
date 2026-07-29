@@ -74,7 +74,9 @@ async def verify_config(hass: HomeAssistant, data: dict[str, str]) -> dict:
 class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Audiobookshelf."""
 
-    VERSION = 1
+    # Bumped to 2 when entity and device identifiers moved off the API URL
+    # onto the entry id. See async_migrate_entry.
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, str] | None = None
