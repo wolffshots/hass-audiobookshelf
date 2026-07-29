@@ -1,20 +1,18 @@
 """Module containing the services platform for the Audiobookshelf integration."""
 
 from logging import getLogger
-from typing import TYPE_CHECKING
+from typing import cast
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from aioaudiobookshelf.schema.library import (
-    LibraryItemMinifiedBook,
-    LibraryItemMinifiedPodcast,
-)
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from aioaudiobookshelf.exceptions import AbsError
+from aioaudiobookshelf.schema.library import LibraryItemMinifiedBook
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
+from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
 from .const import DOMAIN
-
-if TYPE_CHECKING:
-    from . import AudiobookShelfDataUpdateCoordinator
 
 SERVICE_REMOVE_PROGRESS = "remove_my_progress"
 
@@ -41,49 +39,58 @@ _LOGGER = getLogger(__name__)
 def async_setup_services(hass: HomeAssistant) -> bool:
     """Set up the Audiobookshelf services."""
 
+    def loaded_coordinator() -> AudiobookShelfDataUpdateCoordinator:
+        """Return the coordinator, or explain why the action cannot run."""
+        entries = hass.config_entries.async_entries(DOMAIN)
+        if not entries:
+            msg = "Audiobookshelf is not configured"
+            raise ServiceValidationError(msg)
+        if entries[0].state is not ConfigEntryState.LOADED:
+            msg = "The Audiobookshelf configuration entry is not loaded"
+            raise ServiceValidationError(msg)
+        return cast("AudiobookShelfDataUpdateCoordinator", entries[0].runtime_data)
+
     async def async_handle_remove_progress(call: ServiceCall) -> None:
         """Handle the remove progress service call."""
-        coordinator: AudiobookShelfDataUpdateCoordinator = hass.data[DOMAIN]
+        coordinator = loaded_coordinator()
         series_name: str = call.data[SERVICE_ATTRIBUTE_SERIES_NAME].casefold()
+        removed = 0
 
-        client = await coordinator.get_client()
-        libraries = await client.get_all_libraries()
         _LOGGER.debug("Searching for %s", series_name)
-        for library in libraries:
-            async for response in client.get_library_items(library_id=library.id_):
-                if not response.results:
-                    break
-                for lib_item_minified in response.results:
-                    if isinstance(lib_item_minified, LibraryItemMinifiedPodcast):
-                        pass
-                    if isinstance(lib_item_minified, LibraryItemMinifiedBook):
-                        item_series_name = lib_item_minified.media.metadata.series_name
+        try:
+            client = await coordinator.get_client()
+            for library in await client.get_all_libraries():
+                async for response in client.get_library_items(library_id=library.id_):
+                    if not response.results:
+                        break
+                    for item in response.results:
+                        if not isinstance(item, LibraryItemMinifiedBook):
+                            continue
+                        item_series_name = item.media.metadata.series_name
                         if (
-                            isinstance(item_series_name, str)
-                            and series_name in item_series_name.casefold()
+                            not isinstance(item_series_name, str)
+                            or series_name not in item_series_name.casefold()
                         ):
-                            media_progress = await client.get_my_media_progress(
-                                item_id=lib_item_minified.id_
-                            )
-                            _LOGGER.debug(
-                                "found match of %s",
-                                lib_item_minified.media.metadata.title_ignore_prefix,
-                            )
-                            if media_progress is not None:
-                                _LOGGER.debug(
-                                    "deleting media progress for %s",
-                                    lib_item_minified.media.metadata.title_ignore_prefix,
-                                )
-                                await client.remove_my_media_progress(
-                                    media_progress_id=media_progress.id_
-                                )
-                        else:
-                            _LOGGER.debug(
-                                "not found match of %s",
-                                lib_item_minified.media.metadata.title_ignore_prefix,
-                            )
-
-        await coordinator.async_request_refresh()
+                            continue
+                        progress = await client.get_my_media_progress(item_id=item.id_)
+                        if progress is None:
+                            continue
+                        _LOGGER.debug(
+                            "Removing progress for %s",
+                            item.media.metadata.title_ignore_prefix,
+                        )
+                        await client.remove_my_media_progress(
+                            media_progress_id=progress.id_
+                        )
+                        removed += 1
+        except AbsError as err:
+            # Deletions already made cannot be rolled back, so say how far it
+            # got rather than reporting a bare failure.
+            msg = f"Removing progress failed after {removed} item(s): {err}"
+            raise HomeAssistantError(msg) from err
+        finally:
+            _LOGGER.debug("Removed progress for %s item(s)", removed)
+            await coordinator.async_request_refresh()
 
     services = {
         SERVICE_REMOVE_PROGRESS: async_handle_remove_progress,
@@ -94,10 +101,3 @@ def async_setup_services(hass: HomeAssistant) -> bool:
         )
 
     return True
-
-
-@callback
-def async_unload_services(hass: HomeAssistant) -> None:
-    """Unload the Audiobookshelf services from hass."""
-    for service in SUPPORTED_SERVICES:
-        hass.services.async_remove(DOMAIN, service)

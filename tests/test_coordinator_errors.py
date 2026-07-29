@@ -126,5 +126,5 @@ def test_auth_sessions_degrade_to_none_on_404() -> None:
 def test_schema_drift_is_update_failed(body: bytes) -> None:
     """Parse failures are neither AbsError nor ClientError and must be caught."""
     coordinator = _with_client(_endpoints(**{"api/libraries/lib-1/stats": body}))
-    with pytest.raises(UpdateFailed, match="library_stats"):
+    with pytest.raises(UpdateFailed, match="library stats"):
         asyncio.run(coordinator._async_update_data())  # noqa: SLF001
