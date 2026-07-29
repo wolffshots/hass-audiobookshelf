@@ -24,6 +24,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from mashumaro.types import Alias
 
+from .const import REQUEST_TIMEOUT
+
 _LOGGER = getLogger(__name__)
 
 API_DATA_METHODS = [
@@ -105,6 +107,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize."""
         self.api_url = api_url
         self.token = token
+        self.libraries: list[Library] = []
 
         super().__init__(
             hass,
@@ -125,6 +128,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
                     logger=_LOGGER,
                     pagination_items_per_page=30,
                     token=self.token,
+                    timeout=REQUEST_TIMEOUT,
                 ),
             )
         return self._client
@@ -179,11 +183,15 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         for library in libraries:
             response = await client._get(f"api/libraries/{library.id_}/stats")  # noqa: SLF001
             stats[library.id_] = LibraryStats.from_json(response)
+        # Kept so the sensor platform can name its entities without issuing a
+        # second /api/libraries call of its own.
+        self.libraries = libraries
         return stats
 
     async def _async_update_data(self) -> dict:
         """Fetch data from API endpoint."""
         data = {}
+        method = ""
         try:
             for method in API_DATA_METHODS:
                 _LOGGER.debug("Fetched %s", method)
@@ -195,6 +203,14 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
             raise ConfigEntryAuthFailed(msg) from err
         except (AbsError, ClientError) as err:
             msg = "Error fetching data"
+            raise UpdateFailed(msg) from err
+        except (ValueError, LookupError) as err:
+            # Every from_json call raises mashumaro's MissingField (LookupError)
+            # or InvalidFieldValue (ValueError) on schema drift, and a non-JSON
+            # body raises JSONDecodeError (ValueError). None of these are
+            # AbsError or ClientError, so without this they escape as an
+            # unhandled exception and log a traceback on every poll.
+            msg = f"Unexpected response from Audiobookshelf fetching {method}"
             raise UpdateFailed(msg) from err
         else:
             return data

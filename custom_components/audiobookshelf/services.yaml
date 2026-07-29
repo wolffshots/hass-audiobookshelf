@@ -3,4 +3,5 @@ remove_my_progress:
     series_name:
       required: true
       example: construction site
-      default: true
+      selector:
+        text:

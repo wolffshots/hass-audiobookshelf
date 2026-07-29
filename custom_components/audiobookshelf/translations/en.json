@@ -34,11 +34,11 @@
     "services": {
         "remove_my_progress": {
             "name": "Remove My Progress",
-            "description": "Remove listening progress for library items.",
+            "description": "Remove listening progress for library items. This cannot be undone.",
             "fields": {
                 "series_name": {
-                    "name": "series name to match for removal",
-                    "description": ""
+                    "name": "Series name",
+                    "description": "Text matched against series names, ignoring case. Progress is removed from every book whose series contains this text, in every library, for the account the API key belongs to."
                 }
             }
         }
