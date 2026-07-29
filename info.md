@@ -26,6 +26,12 @@
 
 A library created on the server gets its sensors automatically, at the next update. A library removed from the server leaves its sensors behind as `unavailable`; delete them from the entity registry if you want them gone.
 
+## Optional: update notifications
+
+Audiobookshelf does not report available updates through its own API, so this is **off by default**. Turning on **Check GitHub for new Audiobookshelf releases** under **Configure** adds an `update.audiobookshelf_server` entity that compares the version your server reports against the latest published release, checking once an hour.
+
+This is the only thing the integration does that leaves your network. Left off, no update entity is created and no external request is ever made.
+
 ## Actions
 
 ### `audiobookshelf.remove_my_progress`

@@ -45,7 +45,11 @@
             "init": {
                 "title": "Audiobookshelf options",
                 "data": {
-                    "scan_interval": "Update interval in seconds (minimum 30, defaults to 300s/5min)"
+                    "scan_interval": "Update interval in seconds (minimum 30, defaults to 300s/5min)",
+                    "check_for_updates": "Check GitHub for new Audiobookshelf releases"
+                },
+                "data_description": {
+                    "check_for_updates": "Audiobookshelf does not report available updates itself, so this asks GitHub once an hour. It is the only thing this integration does that leaves your network, and it is off by default."
                 }
             }
         }
@@ -78,6 +82,11 @@
             },
             "library_duration": {
                 "name": "{library} duration"
+            }
+        },
+        "update": {
+            "server": {
+                "name": "Server"
             }
         }
     },
