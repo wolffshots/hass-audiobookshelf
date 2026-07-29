@@ -24,6 +24,8 @@
 | `sensor.audiobookshelf_<library>_duration`   | `sensor` | Total playable content in the library, shown in hours by default |
 | `sensor.audiobookshelf_<library>_size`       | `sensor` | Total disk space used by the library, shown in GB by default |
 
+`recent sessions` counts open sessions the server updated in the last two minutes, which is as close to "currently playing" as the API allows — Audiobookshelf reports no playing or paused flag. It compares your Home Assistant clock against timestamps from the Audiobookshelf server, so if the two drift more than two minutes apart it can read zero while people are listening. Keep both on NTP.
+
 A library created on the server gets its sensors automatically, at the next update. A library removed from the server leaves its sensors behind as `unavailable`; delete them from the entity registry if you want them gone.
 
 ## Optional: update notifications

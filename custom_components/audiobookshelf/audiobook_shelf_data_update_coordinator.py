@@ -58,12 +58,22 @@ class OpenSessionsResponse(_BaseModel):
         self, max_idle_seconds: int = 120
     ) -> list[PlaybackSession]:
         """Filter sessions that have been updated recently."""
+        # PlaybackSession carries no playing/paused flag, so how recently the
+        # server last touched a session is the only signal the API offers for
+        # telling active playback from a session someone left paused.
+        #
+        # Note this compares the Home Assistant host's clock against
+        # updated_at, which the Audiobookshelf server stamps. A host running
+        # more than max_idle_seconds ahead of the server sees every session as
+        # idle and reports zero however many people are listening. There is no
+        # server-supplied "now" anywhere in the response to compare against
+        # instead, so the two clocks have to agree. A host running behind is
+        # harmless: the difference goes negative and the session still counts.
         current_time_ms = int(time.time() * 1000)
         return [
             session
             for session in self.sessions
-            if hasattr(session, "updated_at")
-            and (current_time_ms - session.updated_at) < (max_idle_seconds * 1000)
+            if (current_time_ms - session.updated_at) < (max_idle_seconds * 1000)
         ]
 
 
