@@ -13,7 +13,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import UnitOfInformation
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -21,7 +20,7 @@ from custom_components.audiobookshelf import AudiobookshelfConfigEntry, clean_co
 from custom_components.audiobookshelf.audiobook_shelf_data_update_coordinator import (
     AudiobookShelfDataUpdateCoordinator,
 )
-from custom_components.audiobookshelf.const import DOMAIN
+from custom_components.audiobookshelf.entity import device_info_for
 
 _LOGGER = getLogger(__name__)
 
@@ -200,14 +199,7 @@ class AudiobookShelfSensor(CoordinatorEntity, SensorEntity):
             f"_{sensor_description.key_context}"
             f"_{sensor_description.key_context_method}"
         )
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            entry_type=DeviceEntryType.SERVICE,
-            name="Audiobookshelf",
-            manufacturer="advplyr",
-            sw_version=coordinator.server_version,
-            configuration_url=coordinator.api_url,
-        )
+        self._attr_device_info = device_info_for(entry, coordinator)
 
     @property
     def available(self) -> bool:

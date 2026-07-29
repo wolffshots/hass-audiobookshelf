@@ -135,6 +135,17 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
             self.server_version = self._client.server_settings.version
         return self._client
 
+    async def async_refresh_server_version(self) -> str | None:
+        """Re-read the server version by rebuilding the client."""
+        # The version only arrives with /api/authorize, which is what building
+        # the client does, so there is nowhere else to read it from without
+        # relying on serverVersion in /status, which is undocumented. Dropping
+        # the cached client is safe: anything mid-flight holds its own
+        # reference, and the next call rebuilds.
+        self._client = None
+        await self.get_client()
+        return self.server_version
+
     async def get_libraries(self) -> list[Library]:
         """Fetch library id list from API."""
         return await (await self.get_client()).get_all_libraries()  # type: ignore[no-any-return]

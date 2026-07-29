@@ -22,10 +22,12 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 from .const import (
+    CONF_CHECK_FOR_UPDATES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
     REQUEST_TIMEOUT,
+    check_for_updates_for,
     scan_interval_for,
 )
 
@@ -235,6 +237,12 @@ class AudiobookshelfOptionsFlow(config_entries.OptionsFlow):
                         CONF_SCAN_INTERVAL,
                         default=scan_interval_for(self.config_entry),
                     ): SCAN_INTERVAL_SELECTOR,
+                    # Off by default. This is the only thing the integration
+                    # does that leaves the local network.
+                    vol.Required(
+                        CONF_CHECK_FOR_UPDATES,
+                        default=check_for_updates_for(self.config_entry),
+                    ): cv.boolean,
                 }
             ),
         )
