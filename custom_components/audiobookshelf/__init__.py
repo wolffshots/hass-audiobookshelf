@@ -60,7 +60,13 @@ def _migrate_url_identifiers(hass: HomeAssistant, entry: ConfigEntry) -> None:
     )
     if device is not None:
         device_registry.async_update_device(
-            device.id, new_identifiers={(DOMAIN, entry.entry_id)}
+            device.id,
+            new_identifiers={(DOMAIN, entry.entry_id)},
+            # v1 put the integration's own version here, where the device
+            # registry expects the server's. Dropping it from DeviceInfo does
+            # not clear what is already stored, so an upgraded install would
+            # keep showing it indefinitely.
+            sw_version=None,
         )
 
 
@@ -69,6 +75,7 @@ async def async_migrate_entry(
 ) -> bool:
     """Migrate an old config entry."""
     if entry.version == 1:
+        _LOGGER.info("Migrating Audiobookshelf entry from version 1 to 2")
         _migrate_url_identifiers(hass, entry)
         hass.config_entries.async_update_entry(entry, version=2)
     return True
