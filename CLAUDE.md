@@ -25,7 +25,7 @@ Then read the actual hunks for anything that did change, at
 
 ### Endpoints this integration depends on
 
-Check each of these on every server release. The first five back sensors; the rest back
+Check each of these on every server release. The first six back sensors; the rest back
 the `remove_my_progress` service.
 
 | Endpoint | Used for | Notes |
@@ -54,8 +54,14 @@ as a `Bearer` token:
 - **Refresh tokens** — rejected for API auth since 2.36.0. This integration never sends one.
 
 The credential must belong to an **admin/root** user. `verify_config` uses
-`get_admin_client_by_token` deliberately so a non-admin key is rejected at setup rather than
-failing on every poll afterwards.
+`get_admin_client_by_token` deliberately so a non-admin key is rejected in the config flow
+rather than failing on every poll afterwards.
+
+`verify_config` is only reachable from the config flow now. It used to run again in
+`async_setup_entry`, which duplicated a request on every restart and reload over its own
+`ClientSession`; `async_config_entry_first_refresh` already gates setup. A non-admin key that
+somehow reaches setup is caught by the coordinator, which handles `BadUserError` ahead of
+`AbsAuthError` to say so specifically.
 
 ### The exception trap
 
@@ -74,12 +80,34 @@ refresh token, and raises `TokenIsMissingError`. Both are `AbsAuthError`, so cat
 `NotFoundError` (HTTP 404) is *not* an `AbsAuthError` — that is what lets `count_auth_sessions`
 degrade to `None` on pre-2.36.0 servers instead of prompting for reauth.
 
+`BadUserError` (non-admin credential) *is* an `AbsAuthError`, so it must be caught before it if
+you want a message that says so rather than a generic auth failure.
+
+There is a third clause that is easy to leave out. Every `from_json` call raises **mashumaro**
+exceptions on schema drift — `MissingField` (a `LookupError`) and `InvalidFieldValue` (a
+`ValueError`) — and a non-JSON body raises `JSONDecodeError` (also a `ValueError`). None of
+these are `AbsError` *or* `ClientError`. Without `except (ValueError, LookupError)` they escape
+the coordinator entirely and Home Assistant logs a full traceback on every poll instead of a
+clean `UpdateFailed`.
+
 Note also that `_get` changed behaviour across library versions: 404 used to return `b""` and
 now raises. Re-check this when bumping `aioaudiobookshelf`.
 
+### Platform setup must not call the API
+
+`sensor.py` used to call `/api/libraries` again during `async_setup_entry` to name its
+per-library entities. A transient failure there is swallowed by the platform forward, so the
+entry stayed `LOADED` with no entities — and because the coordinator only schedules a refresh
+while it has listeners, **polling then stopped permanently**, with the integration still
+showing as healthy. It took a restart or manual reload to recover.
+
+The library list is now stashed on the coordinator by `library_stats()` and read from there.
+Keep it that way: anything the sensor platform needs should come from data the first refresh
+already fetched.
+
 ## Verifying a change
 
-All three must be clean. `uvx` avoids touching the system Python:
+All four must be clean. `uvx` avoids touching the system Python:
 
 ```bash
 uvx ruff@0.16.0 check .
@@ -90,22 +118,35 @@ uvx ruff@0.16.0 format --check .
 ```
 
 ```bash
-uvx --prerelease=allow --with homeassistant==2025.1.4 --with aioaudiobookshelf==0.1.24 --with voluptuous --with pytest mypy@2.3.0 --config-file mypy.ini custom_components/audiobookshelf/ tests/
+uvx --python 3.12 --prerelease=allow --with homeassistant==2025.1.4 --with aioaudiobookshelf==0.1.24 --with voluptuous --with pytest mypy@2.3.0 --config-file mypy.ini custom_components/audiobookshelf/ tests/
 ```
 
 ```bash
-uvx --prerelease=allow --with homeassistant==2025.1.4 --with aioaudiobookshelf==0.1.24 pytest@9.1.1 tests/ -q -W ignore::DeprecationWarning
+uvx --python 3.12 --prerelease=allow --with homeassistant==2025.1.4 --with aioaudiobookshelf==0.1.24 pytest@9.1.1 tests/ -q -W ignore::DeprecationWarning
 ```
 
 `--prerelease=allow` is required because `homeassistant` depends on a pre-release of
 `aiohasupervisor`. Without it the resolve fails outright.
 
+`--python 3.12` is not optional in practice. Once `uv` has cached a newer toolchain it will
+re-resolve to it, and `homeassistant==2025.1.4` cannot build there — `orjson==3.10.12` has no
+wheel for 3.14. Without the flag the same command works one day and fails the next.
+
+CI runs exactly these, minus the pins, via `requirements.txt`. It lints and type-checks
+`tests/` as well as the component, so a change that only passes locally because you scoped the
+command narrower will still fail there.
+
 When bumping a pinned tool, run it against a pristine tree first (`git archive HEAD` into a
 temp dir) so pre-existing findings are not mistaken for regressions.
 
-Static checks are the real safety net here — the test suite is small and covers pure logic
-only (config validation and response schemas). Anything touching Home Assistant runtime
-behaviour is not covered and needs the live test below.
+The test suite covers the coordinator's exception mapping, sensor value derivation and
+availability, the `remove_my_progress` guards, and the v1 to v2 entity migration — all with
+plain `pytest` and `unittest.mock`, no `hass` fixture. Do not reach for
+`pytest-homeassistant-custom-component`: every release caps `pytest` at `<=8.3.4` and conflicts
+with the pinned 9.1.1, and nothing here has needed it.
+
+What is still *not* covered, and needs the live test below: the config flow as a flow, reauth
+end to end, and anything that depends on Home Assistant actually wiring entities up.
 
 ## Testing against a real server
 
@@ -152,23 +193,50 @@ These cost real time. All were hit in practice.
 ## Dependencies
 
 `requirements.txt` is **CI and development only**. HACS ships `custom_components/audiobookshelf/`,
-and `manifest.json` declares the only runtime requirement (`aioaudiobookshelf`, unpinned).
+and `manifest.json` declares the only runtime requirement (`aioaudiobookshelf`).
 
 This matters for triaging Dependabot: advisories against `homeassistant` in `requirements.txt`
 affect the Actions runner, not any user of the integration, and should be weighted accordingly.
 
-Because `manifest.json` is unpinned, users always get the newest `aioaudiobookshelf`. Keep the
-`requirements.txt` pin at that same version or CI tests something users never run.
+`manifest.json` bounds `aioaudiobookshelf` to `>=0.1.24,<0.2` rather than leaving it open. The
+coordinator reaches into `client._get()` in six places because the library exposes no public
+accessor for these endpoints, and `_get`'s 404 behaviour has already changed once between
+versions. Unbounded, a single upstream release would break every install at once with no code
+change here. The cost is that a new minor has to be adopted deliberately: bump the bound and
+the `requirements.txt` pin together, and re-read the exception trap section above.
+
+Keep the `requirements.txt` pin at the newest version the bound allows, or CI tests something
+users never run.
 
 ## Releasing
 
-Bump the version in **both** places — they are separate values and drift silently:
+Bump the version in **both** places — they are separate values and used to drift silently:
 
 - `custom_components/audiobookshelf/const.py` -> `VERSION = "vX.Y.Z"` (with `v`)
 - `custom_components/audiobookshelf/manifest.json` -> `"version": "X.Y.Z"` (without `v`)
 
+`release.yml` now checks both against the tag and fails the release if either disagrees, so
+the drift is caught rather than shipped. `VERSION` has no remaining consumer in the code — it
+was removed from `device_info`, where it was being reported as the *server's* version — but it
+still has to be bumped, because the gate compares it to the tag.
+
 `hacs.json` separately declares the minimum supported Home Assistant version.
 
 Releases are cut from `main` after merge. Publishing a GitHub release triggers
-`.github/workflows/release.yml`, which zips the component and attaches it — that asset is what
-HACS installs, so confirm it exists on the release before considering it done.
+`.github/workflows/release.yml`, which zips the component and attaches it to the release.
+
+**That asset is not what HACS installs.** `hacs.json` does not set `zip_release`, so HACS
+downloads the individual files under `custom_components/audiobookshelf/` at the tag and ignores
+the archive entirely. The archive exists for the manual-install path in the README. Opting in
+to `zip_release` would mean giving the asset a stable filename, which the current
+`Audiobookshelf_$TAG.zip` is not.
+
+## Config entry schema version
+
+`ConfigFlow.VERSION` is **2**. It went from 1 when entity unique IDs and the device identifier
+moved off the API URL (user-editable, so changing it orphaned everything) onto `entry.entry_id`.
+
+Anything that changes the shape of a unique ID from now on needs a matching bump and a branch
+in `async_migrate_entry`. The v1 migration is a pure prefix swap that keeps the rest of the key
+byte for byte, which is deliberate — it is far easier to verify than a reformat, and the
+trailing `_None_None` segments are invisible to users.
