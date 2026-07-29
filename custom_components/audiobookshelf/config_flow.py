@@ -95,7 +95,6 @@ class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors=errors,
                 )
 
-            await self.async_set_unique_id("Audiobookshelf")
             return self.async_create_entry(
                 title="Audiobookshelf",
                 data={
