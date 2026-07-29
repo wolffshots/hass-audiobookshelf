@@ -205,6 +205,7 @@ class AudiobookShelfSensor(CoordinatorEntity, SensorEntity):
             entry_type=DeviceEntryType.SERVICE,
             name="Audiobookshelf",
             manufacturer="advplyr",
+            sw_version=coordinator.server_version,
             configuration_url=coordinator.api_url,
         )
 

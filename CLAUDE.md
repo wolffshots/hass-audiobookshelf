@@ -39,6 +39,18 @@ the `remove_my_progress` service.
 | `GET /api/libraries/{id}/items` | service | paginated |
 | `GET`/`DELETE /api/me/progress/...` | service | |
 
+`POST /api/authorize` is not in the table because the library calls it, not this integration —
+`get_admin_client_by_token` posts it to build the client. Its response carries
+`serverSettings.version`, which the library exposes as `client.server_settings.version`. That is
+where the device's `sw_version` comes from, so it costs no request of its own. It is only
+refreshed when the client is rebuilt, so a server upgrade is not reflected until the entry
+reloads.
+
+Audiobookshelf exposes **no update-check endpoint**. `/api/check-for-update`, `/api/update`,
+`/api/version` and `/api/server-settings` all 404 on 2.36.0; the web UI queries GitHub from the
+browser. Anything reporting "an update is available" has to ask GitHub directly, which is why
+this integration does not do it today.
+
 `/api/libraries/{id}/stats` omits `totalAuthors` for **podcast** libraries. `LibraryStats.total_authors`
 must stay `int | None`. This is not hypothetical — it was confirmed against a real server
 with a podcast library, and a required field there would break every poll.

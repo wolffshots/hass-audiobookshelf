@@ -104,6 +104,7 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
         self.api_url = api_url
         self.token = token
         self.libraries: list[Library] = []
+        self.server_version: str | None = None
 
         super().__init__(
             hass,
@@ -127,6 +128,11 @@ class AudiobookShelfDataUpdateCoordinator(DataUpdateCoordinator):
                     timeout=REQUEST_TIMEOUT,
                 ),
             )
+            # /api/authorize is already called to build the client and its
+            # response carries the server version, so this costs no extra
+            # request. It is only refreshed when the client is rebuilt, which
+            # is fine for something shown on the device page.
+            self.server_version = self._client.server_settings.version
         return self._client
 
     async def get_libraries(self) -> list[Library]:

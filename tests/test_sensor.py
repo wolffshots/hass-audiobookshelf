@@ -80,6 +80,7 @@ def test_identity_is_keyed_on_the_entry_not_the_url() -> None:
     """The URL is user-editable, so identity derived from it orphans entities."""
     coordinator = MagicMock()
     coordinator.api_url = "http://abs.local:13378"
+    coordinator.server_version = "2.36.0"
     entry = MagicMock()
     entry.entry_id = "entry-1"
 
@@ -89,9 +90,35 @@ def test_identity_is_keyed_on_the_entry_not_the_url() -> None:
     assert sensor.device_info is not None
     assert sensor.device_info["identifiers"] == {(DOMAIN, "entry-1")}
     assert sensor.device_info["entry_type"] is DeviceEntryType.SERVICE
-    # Was the integration version, which reads as the server version.
-    assert "sw_version" not in sensor.device_info
     assert sensor.has_entity_name is True
+
+
+def test_sw_version_reports_the_server_not_the_integration() -> None:
+    """It used to report the integration's own VERSION constant."""
+    coordinator = MagicMock()
+    coordinator.api_url = "http://abs.local:13378"
+    coordinator.server_version = "2.36.0"
+    entry = MagicMock()
+    entry.entry_id = "entry-1"
+
+    sensor = AudiobookShelfSensor(coordinator, entry, LIBRARY_SENSOR)
+
+    assert sensor.device_info is not None
+    assert sensor.device_info["sw_version"] == "2.36.0"
+
+
+def test_sw_version_absent_before_the_first_client_is_built() -> None:
+    """A server too old to report it must not break entity creation."""
+    coordinator = MagicMock()
+    coordinator.api_url = "http://abs.local:13378"
+    coordinator.server_version = None
+    entry = MagicMock()
+    entry.entry_id = "entry-1"
+
+    sensor = AudiobookShelfSensor(coordinator, entry, LIBRARY_SENSOR)
+
+    assert sensor.device_info is not None
+    assert sensor.device_info["sw_version"] is None
 
 
 def _setup_platform(libraries: list[Any]) -> tuple[Any, list[Any], list[Any]]:
