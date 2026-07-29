@@ -29,7 +29,7 @@
 | `sensor.audiobookshelf_<library>_duration`   | `sensor` | Total playable content in the library, shown in hours by default |
 | `sensor.audiobookshelf_<library>_size`       | `sensor` | Total disk space used by the library, shown in GB by default |
 
-Library sensors are created for the libraries that exist when the integration starts. Reload the integration after adding or removing a library on the server, otherwise the new library is counted by `sensor.audiobookshelf_libraries` without getting sensors of its own.
+A library created on the server gets its sensors automatically, at the next update. A library removed from the server leaves its sensors behind as `unavailable`; delete them from the entity registry if you want them gone.
 
 ## Actions
 

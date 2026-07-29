@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from logging import getLogger
 from typing import Any, Final
 
+from aioaudiobookshelf.schema.library import Library
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -11,7 +12,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import UnitOfInformation
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -83,6 +84,50 @@ SENSOR_DESCRIPTIONS: Final[tuple[AudiobookShelfSensorEntityDescription, ...]] = 
 )
 
 
+def library_descriptions(
+    library: Library,
+) -> list[AudiobookShelfSensorEntityDescription]:
+    """Build the sensor descriptions for one library."""
+    return [
+        AudiobookShelfSensorEntityDescription(
+            key="library_stats",
+            key_context=library.id_,
+            key_context_method="total_size",
+            translation_key="library_size",
+            translation_placeholders={"library": library.name},
+            icon="mdi:harddisk",
+            device_class=SensorDeviceClass.DATA_SIZE,
+            state_class=SensorStateClass.MEASUREMENT,
+            native_unit_of_measurement=UnitOfInformation.BYTES,
+            suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+            suggested_display_precision=2,
+        ),
+        AudiobookShelfSensorEntityDescription(
+            key="library_stats",
+            key_context=library.id_,
+            key_context_method="total_items",
+            translation_key="library_items",
+            translation_placeholders={"library": library.name},
+            icon="mdi:book-multiple",
+            state_class=SensorStateClass.MEASUREMENT,
+            native_unit_of_measurement="items",
+        ),
+        AudiobookShelfSensorEntityDescription(
+            key="library_stats",
+            key_context=library.id_,
+            key_context_method="total_duration",
+            translation_key="library_duration",
+            translation_placeholders={"library": library.name},
+            icon="mdi:timer-outline",
+            device_class=SensorDeviceClass.DURATION,
+            state_class=SensorStateClass.MEASUREMENT,
+            native_unit_of_measurement="s",
+            suggested_unit_of_measurement="h",
+            suggested_display_precision=0,
+        ),
+    ]
+
+
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001
     entry: AudiobookshelfConfigEntry,
@@ -93,59 +138,42 @@ async def async_setup_entry(
 
     coordinator = entry.runtime_data
 
-    sensors_descriptions: list[AudiobookShelfSensorEntityDescription] = []
-    sensors_descriptions.extend(SENSOR_DESCRIPTIONS)
-    # Populated by the first refresh, which has already run and would have
-    # aborted setup had it failed. Calling the API again here would be a second
-    # chance to fail, and a failure leaves the entry loaded with no entities at
-    # all - which also stops the coordinator polling, since it only schedules
-    # a refresh while it has listeners.
-    for library in coordinator.libraries:
-        sensors_descriptions.extend(
-            [
-                AudiobookShelfSensorEntityDescription(
-                    key="library_stats",
-                    key_context=library.id_,
-                    key_context_method="total_size",
-                    translation_key="library_size",
-                    translation_placeholders={"library": library.name},
-                    icon="mdi:harddisk",
-                    device_class=SensorDeviceClass.DATA_SIZE,
-                    state_class=SensorStateClass.MEASUREMENT,
-                    native_unit_of_measurement=UnitOfInformation.BYTES,
-                    suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
-                    suggested_display_precision=2,
-                ),
-                AudiobookShelfSensorEntityDescription(
-                    key="library_stats",
-                    key_context=library.id_,
-                    key_context_method="total_items",
-                    translation_key="library_items",
-                    translation_placeholders={"library": library.name},
-                    icon="mdi:book-multiple",
-                    state_class=SensorStateClass.MEASUREMENT,
-                    native_unit_of_measurement="items",
-                ),
-                AudiobookShelfSensorEntityDescription(
-                    key="library_stats",
-                    key_context=library.id_,
-                    key_context_method="total_duration",
-                    translation_key="library_duration",
-                    translation_placeholders={"library": library.name},
-                    icon="mdi:timer-outline",
-                    device_class=SensorDeviceClass.DURATION,
-                    state_class=SensorStateClass.MEASUREMENT,
-                    native_unit_of_measurement="s",
-                    suggested_unit_of_measurement="h",
-                    suggested_display_precision=0,
-                ),
-            ]
+    async_add_entities(
+        AudiobookShelfSensor(coordinator, entry, description)
+        for description in SENSOR_DESCRIPTIONS
+    )
+
+    known_libraries: set[str] = set()
+
+    @callback
+    def add_new_libraries() -> None:
+        """Create sensors for libraries seen for the first time."""
+        # coordinator.libraries is refreshed by library_stats() on every poll,
+        # and is populated by the first refresh before this platform is set up.
+        # Reading it rather than calling the API keeps platform setup off the
+        # network: a failure there leaves the entry loaded with no entities,
+        # which also stops polling, since the coordinator only schedules a
+        # refresh while it has listeners.
+        new = [
+            library
+            for library in coordinator.libraries
+            if library.id_ not in known_libraries
+        ]
+        if not new:
+            return
+        known_libraries.update(library.id_ for library in new)
+        _LOGGER.debug("Adding sensors for %s new librarie(s)", len(new))
+        async_add_entities(
+            AudiobookShelfSensor(coordinator, entry, description)
+            for library in new
+            for description in library_descriptions(library)
         )
-    entities = [
-        AudiobookShelfSensor(coordinator, entry, sensor_description)
-        for sensor_description in sensors_descriptions
-    ]
-    async_add_entities(entities)
+
+    add_new_libraries()
+    # A library created on the server was previously counted by
+    # count_libraries while never getting sensors of its own until the user
+    # reloaded the integration.
+    entry.async_on_unload(coordinator.async_add_listener(add_new_libraries))
 
 
 class AudiobookShelfSensor(CoordinatorEntity, SensorEntity):

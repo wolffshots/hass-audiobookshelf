@@ -105,6 +105,10 @@ The library list is now stashed on the coordinator by `library_stats()` and read
 Keep it that way: anything the sensor platform needs should come from data the first refresh
 already fetched.
 
+That list is also what makes new libraries appear without a reload — the platform registers a
+coordinator listener that adds sensors for library ids it has not seen. It has to stay
+idempotent, because it runs on every poll.
+
 ## Verifying a change
 
 All four must be clean. `uvx` avoids touching the system Python:

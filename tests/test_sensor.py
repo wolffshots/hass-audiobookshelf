@@ -1,9 +1,10 @@
 """Tests for how sensors read values out of the coordinator's data."""
 
+import asyncio
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, patch
 
 from homeassistant.helpers.device_registry import DeviceEntryType
@@ -15,6 +16,9 @@ from custom_components.audiobookshelf.sensor import (
     AudiobookShelfSensor,
     AudiobookShelfSensorEntityDescription,
 )
+
+if TYPE_CHECKING:
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 # Built per library at runtime, so they are not in SENSOR_DESCRIPTIONS.
 LIBRARY_TRANSLATION_KEYS = ("library_size", "library_items", "library_duration")
@@ -88,6 +92,75 @@ def test_identity_is_keyed_on_the_entry_not_the_url() -> None:
     # Was the integration version, which reads as the server version.
     assert "sw_version" not in sensor.device_info
     assert sensor.has_entity_name is True
+
+
+def _setup_platform(libraries: list[Any]) -> tuple[Any, list[Any], list[Any]]:
+    """Run the platform setup and return the coordinator, listeners and entities."""
+    listeners: list[Any] = []
+    entities: list[Any] = []
+
+    def _add_listener(callback_fn: Any, context: Any = None) -> Any:  # noqa: ARG001
+        """Record the listener the way DataUpdateCoordinator would."""
+        listeners.append(callback_fn)
+        return lambda: None
+
+    coordinator = MagicMock()
+    coordinator.api_url = "http://abs.local:13378"
+    coordinator.libraries = libraries
+    coordinator.async_add_listener = _add_listener
+
+    entry = MagicMock()
+    entry.entry_id = "entry-1"
+    entry.data = {}
+    entry.runtime_data = coordinator
+
+    asyncio.run(
+        sensor_module.async_setup_entry(
+            MagicMock(), entry, cast("AddEntitiesCallback", entities.extend)
+        )
+    )
+    return coordinator, listeners, entities
+
+
+def test_libraries_present_at_setup_get_sensors() -> None:
+    """Six global sensors plus three for the one library."""
+    _, _, entities = _setup_platform([SimpleNamespace(id_="lib-1", name="Books")])
+
+    assert len(entities) == len(SENSOR_DESCRIPTIONS) + 3
+
+
+def test_library_added_later_does_not_need_a_reload() -> None:
+    """count_libraries counted a new library while it had no sensors of its own."""
+    coordinator, listeners, entities = _setup_platform(
+        [SimpleNamespace(id_="lib-1", name="Books")]
+    )
+    before = len(entities)
+
+    coordinator.libraries.append(SimpleNamespace(id_="lib-2", name="Podcasts"))
+    for listener in listeners:
+        listener()
+
+    assert len(entities) == before + 3
+    new_ids = {e.unique_id for e in entities[before:]}
+    assert new_ids == {
+        "entry-1_library_stats_lib-2_total_size",
+        "entry-1_library_stats_lib-2_total_items",
+        "entry-1_library_stats_lib-2_total_duration",
+    }
+
+
+def test_unchanged_libraries_are_not_added_twice() -> None:
+    """The listener runs on every poll, so it has to be idempotent."""
+    _, listeners, entities = _setup_platform(
+        [SimpleNamespace(id_="lib-1", name="Books")]
+    )
+    before = len(entities)
+
+    for _ in range(3):
+        for listener in listeners:
+            listener()
+
+    assert len(entities) == before
 
 
 def _entity_translations() -> dict[str, Any]:
