@@ -8,7 +8,7 @@ from homeassistant.const import CONF_SCAN_INTERVAL, Platform
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
 
-VERSION = "v0.4.0"
+VERSION = "v0.5.0"
 DOMAIN = "audiobookshelf"
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.UPDATE]
 
