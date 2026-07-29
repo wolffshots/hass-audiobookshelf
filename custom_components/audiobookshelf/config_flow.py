@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from homeassistant.config_entries import ConfigFlowResult
 
-from .const import DOMAIN
+from .const import DOMAIN, REQUEST_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +48,7 @@ async def verify_config(data: dict[str, str]) -> dict:
                     token=data[CONF_API_KEY],
                     logger=_LOGGER,
                     pagination_items_per_page=30,
+                    timeout=REQUEST_TIMEOUT,
                 ),
             )
     except BadUserError:

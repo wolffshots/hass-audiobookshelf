@@ -92,8 +92,12 @@ async def async_setup_entry(
 
     sensors_descriptions: list[AudiobookShelfSensorEntityDescription] = []
     sensors_descriptions.extend(SENSOR_DESCRIPTIONS)
-    libraries = await coordinator.get_libraries()
-    for library in libraries:
+    # Populated by the first refresh, which has already run and would have
+    # aborted setup had it failed. Calling the API again here would be a second
+    # chance to fail, and a failure leaves the entry loaded with no entities at
+    # all - which also stops the coordinator polling, since it only schedules
+    # a refresh while it has listeners.
+    for library in coordinator.libraries:
         sensors_descriptions.extend(
             [
                 AudiobookShelfSensorEntityDescription(
@@ -155,17 +159,29 @@ class AudiobookShelfSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator, None)
 
     @property
+    def available(self) -> bool:
+        """Return whether the library this sensor tracks still exists."""
+        key_context = self.entity_description.key_context
+        if key_context is None:
+            return super().available
+        return super().available and key_context in self.coordinator.data.get(
+            self.entity_description.key, {}
+        )
+
+    @property
     def native_value(self) -> Any | None:
         """Return the state of the sensor."""
         native_value = self.coordinator.data.get(self.entity_description.key)
         if self.entity_description.key_context is not None and native_value is not None:
-            native_value = native_value[self.entity_description.key_context]
+            # A library deleted on the server drops out of library_stats while
+            # its entities live on, so this lookup has to tolerate a miss.
+            native_value = native_value.get(self.entity_description.key_context)
         if (
             self.entity_description.key_context_method is not None
             and native_value is not None
         ):
             native_value = getattr(
-                native_value, self.entity_description.key_context_method
+                native_value, self.entity_description.key_context_method, None
             )
         return native_value
 
