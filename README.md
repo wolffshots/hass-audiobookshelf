@@ -98,7 +98,9 @@ For more info on what the key can be used for see: https://api.audiobookshelf.or
 | `API key`       | The API key that you got in the previous step                                                             |
 | `Scan interval` | How regularly the data should be fetched from your Audiobookshelf instance (in seconds), defaults to 300s |
 
-Only one Audiobookshelf server can be configured at a time. To point the integration at a different server, remove the existing entry first.
+Only one Audiobookshelf server can be configured at a time.
+
+To change the address or replace the API key later, use **Reconfigure** on the integration rather than removing and re-adding it - that keeps your sensors and their history. The update interval is under **Configure**, and takes effect without a restart.
 
 ## Credits
 
