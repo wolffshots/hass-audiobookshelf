@@ -13,17 +13,58 @@ jobs:
     runs-on: "ubuntu-latest"
     permissions:
       contents: write
+    env:
+      TAG: ${{ github.ref_name }}
     steps:
       - name: "Checkout the repository"
         uses: "actions/checkout@v7.0.1"
 
+      # const.py and manifest.json hold the version separately and drift
+      # silently. Catch it here rather than after the release is published.
+      - name: "Check the version matches the tag"
+        shell: "bash"
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import re
+          import sys
+
+          tag = os.environ["TAG"]
+          component = pathlib.Path("custom_components/audiobookshelf")
+
+          const = (component / "const.py").read_text(encoding="utf-8")
+          const_version = re.search(r'^VERSION = "([^"]+)"', const, re.M).group(1)
+          manifest = json.loads((component / "manifest.json").read_text(encoding="utf-8"))
+
+          problems = []
+          if const_version != tag:
+              problems.append(f"const.py VERSION is {const_version}, tag is {tag}")
+          if manifest["version"] != tag.removeprefix("v"):
+              problems.append(
+                  f"manifest.json version is {manifest['version']}, tag is {tag}"
+              )
+
+          for problem in problems:
+              print(f"::error::{problem}")
+          sys.exit(1 if problems else 0)
+          PY
+
+      # The tag reaches bash through the environment, never through template
+      # expansion: git permits $, backticks and quotes in a tag name, so an
+      # interpolated "${{ github.ref_name }}" here would be a command injection
+      # into a job that holds contents: write.
       - name: "ZIP the integration directory"
         shell: "bash"
         run: |
           cd "${{ github.workspace }}/custom_components/audiobookshelf"
-          zip "Audiobookshelf_${{ github.ref_name }}.zip" -r ./
+          zip "Audiobookshelf_$TAG.zip" -r ./
 
+      # Pinned to a commit: this step holds a write-scoped token and builds the
+      # archive offered on the release, so a moved tag upstream would reach
+      # anyone installing it.
       - name: "Upload the ZIP file to the release"
-        uses: "softprops/action-gh-release@v3.0.2"
+        uses: "softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228" # v3.0.2
         with:
-          files: ${{ github.workspace }}/custom_components/audiobookshelf/Audiobookshelf_${{ github.ref_name }}.zip
+          files: ${{ github.workspace }}/custom_components/audiobookshelf/Audiobookshelf_${{ env.TAG }}.zip
