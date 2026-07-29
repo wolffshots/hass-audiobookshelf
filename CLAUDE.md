@@ -105,6 +105,22 @@ clean `UpdateFailed`.
 Note also that `_get` changed behaviour across library versions: 404 used to return `b""` and
 now raises. Re-check this when bumping `aioaudiobookshelf`.
 
+### Recent sessions compares two different clocks
+
+`PlaybackSession` has **no playing/paused flag**. The whole schema carries `updated_at` and
+nothing describing playback state, so "open sessions the server touched in the last two
+minutes" is the closest the API gets to "currently playing". That is what `count_recent_sessions`
+is, and it is why issue #43 could not be answered more directly.
+
+The catch is that `filter_active_sessions` compares `time.time()`, the Home Assistant host's
+clock, against `updated_at`, which the Audiobookshelf server stamps. Nothing in the response
+carries a server-supplied "now" to use instead. If the host runs more than the idle window
+ahead of the server, every session looks idle and the sensor reads zero while people are
+listening — indistinguishable from the bug #43 originally reported. A host running *behind* is
+harmless, since the difference goes negative and the session still counts.
+
+If someone reports this sensor stuck at zero, check clock drift before reading any code.
+
 ### Platform setup must not call the API
 
 `sensor.py` used to call `/api/libraries` again during `async_setup_entry` to name its

@@ -59,6 +59,15 @@ def test_stale_session_is_filtered_out() -> None:
     assert len(response.sessions) == 1
 
 
+def test_session_stamped_ahead_of_the_host_still_counts() -> None:
+    """updated_at comes from the server, so it can be ahead of this clock."""
+    # A host running behind the server yields a negative difference. That must
+    # keep counting the session: it was updated even more recently than "now".
+    ahead_ms = int(time.time() * 1000) + (5 * 60 * 1000)
+    response = _response_with_session_at(ahead_ms)
+    assert len(response.filter_active_sessions()) == 1
+
+
 def test_idle_threshold_boundary_is_respected() -> None:
     """A custom idle window changes which sessions are considered active."""
     ninety_seconds_ago = int(time.time() * 1000) - (90 * 1000)
