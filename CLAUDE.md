@@ -192,7 +192,13 @@ These cost real time. All were hit in practice.
   nothing is. Verify with something independent, such as whether the port is still bound.
 - **`pycares` 5.x breaks `aiodns` 3.2.0** (`Channel.getaddrinfo()` signature change), which
   breaks every DNS lookup in Home Assistant and surfaces as a bare "Unknown error occurred"
-  in the config flow. Pinned via `pycares<5` in `requirements.txt`.
+  in the config flow. Pinned via `pycares<5` in `requirements.txt`. A one-off `uvx` command
+  that imports the Home Assistant stack needs `--with 'pycares<5'` too, or it hits this.
+- **`aiodns` refuses to run on Windows' default event loop.** `aiohttp` picks it as the
+  resolver whenever it is installed, so any script importing the Home Assistant stack on the
+  host dies with "aiodns needs a SelectorEventLoop on Windows" before doing anything. Call
+  `asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())` first. Home
+  Assistant itself only runs on Linux, so this is a host-scripting problem, not a real one.
 
 ## Dependencies
 
@@ -244,3 +250,23 @@ Anything that changes the shape of a unique ID from now on needs a matching bump
 in `async_migrate_entry`. The v1 migration is a pure prefix swap that keeps the rest of the key
 byte for byte, which is deliberate — it is far easier to verify than a reformat, and the
 trailing `_None_None` segments are invisible to users.
+
+### Verifying a migration against a real instance
+
+Install the *previous* release first, let it create its entities, then swap the component and
+restart. Two traps make this look broken when it is not:
+
+- **Registry writes during startup are deferred by 180 seconds.**
+  `helpers/registry.py` picks `SAVE_DELAY_LONG` (180) rather than `SAVE_DELAY` (10) whenever
+  `hass.state` is not `CoreState.running`, and a migration always runs before that. So
+  `.storage/core.entity_registry` keeps the *old* values for three minutes while the in-memory
+  registry is already correct — and restarting inside that window throws the change away.
+  `core.config_entries` saves on its own schedule and updates promptly, so the version bump
+  appearing without the entity rewrite is the expected intermediate state, not a failure.
+  Stop the container with a generous grace period (`podman stop --time 90`) to force the final
+  write, then read the file.
+- **Omitting a field from `DeviceInfo` does not clear it.** The device registry keeps whatever
+  is already stored, so removing `sw_version` only affects new installs. Clearing it for
+  existing ones takes an explicit `sw_version=None` in `async_update_device`. This was found
+  by testing the migration for real and is invisible to unit tests that only assert on what
+  the integration passes.

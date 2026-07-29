@@ -87,8 +87,17 @@ def test_device_identifiers_are_rekeyed() -> None:
     outcome = _migrate(_entry(), [], device=SimpleNamespace(id="dev-1"))
 
     outcome["devices"].assert_called_once_with(
-        "dev-1", new_identifiers={(DOMAIN, "entry-1")}
+        "dev-1", new_identifiers={(DOMAIN, "entry-1")}, sw_version=None
     )
+
+
+def test_stale_sw_version_is_cleared() -> None:
+    """Dropping a field from DeviceInfo does not clear what is stored."""
+    # v1 reported the integration's own version in sw_version, so without this
+    # an upgraded install keeps showing it on the device page forever.
+    outcome = _migrate(_entry(), [], device=SimpleNamespace(id="dev-1"))
+
+    assert outcome["devices"].call_args.kwargs["sw_version"] is None
 
 
 def test_missing_device_is_not_an_error() -> None:
