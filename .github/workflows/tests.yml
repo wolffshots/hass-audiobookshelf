@@ -1,16 +1,12 @@
 name: Test
 
+# No path filter, for the reason given in lint.yml.
 on:
   push:
-    paths:
-      - '**.py'
-      - 'requirements.txt'
-      - '**/.github/workflows/*.y*ml'
   pull_request:
-    paths:
-      - '**.py'
-      - 'requirements.txt'
-      - '**/.github/workflows/*.y*ml'
+
+permissions:
+  contents: read
 
 jobs:
   test:

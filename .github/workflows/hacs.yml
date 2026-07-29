@@ -4,12 +4,17 @@ on:
   push:
     branches:
       - "main"
+  # Deliberately not restricted to pull requests targeting main. With that
+  # filter a stacked pull request ran only Lint and Test, so a manifest or
+  # services.yaml change showed a green tick from a check set that never
+  # validated it.
   pull_request:
-    branches:
-      - "main"
   schedule:
     - cron: "00 12 * * 1"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   hassfest: # https://developers.home-assistant.io/blog/2020/04/16/hassfest
@@ -18,6 +23,10 @@ jobs:
     steps:
       - name: checkout
         uses: "actions/checkout@v7.0.1"
+      # Left on the upstream-recommended moving refs rather than pinned to a
+      # commit: both exist to check this repo against what Home Assistant and
+      # HACS require *now*, and pinning them freezes that at the pin date. The
+      # read-only token above is the mitigation for the mutable ref.
       - name: validation
         uses: home-assistant/actions/hassfest@master
 

@@ -1,16 +1,16 @@
 name: Lint
 
+# No path filter. The previous one listed only '**.py', 'requirements.txt' and
+# a '**/.github/workflows/*.y*ml' glob that never matched, so a change to
+# .ruff.toml or mypy.ini skipped linting entirely. Enumerating every relevant
+# path is a trap that already caught this repo out once, and a run costs well
+# under two minutes.
 on:
   push:
-    paths:
-      - '**.py'
-      - 'requirements.txt'
-      - '**/.github/workflows/*.y*ml'
   pull_request:
-    paths:
-      - '**.py'
-      - 'requirements.txt'
-      - '**/.github/workflows/*.y*ml'
+
+permissions:
+  contents: read
 
 jobs:
   lint:
@@ -29,11 +29,13 @@ jobs:
         - name: "Install requirements"
           run: python3 -m pip install -r requirements.txt
 
+        # Covers tests/ as well as the component, matching the commands
+        # CLAUDE.md documents for verifying a change locally.
         - name: "Lint"
-          run: python3 -m ruff check ./custom_components/audiobookshelf
+          run: python3 -m ruff check .
 
         - name: Run MyPy
-          run: python3 -m mypy custom_components/audiobookshelf
+          run: python3 -m mypy custom_components/audiobookshelf tests
 
         - name: "Format"
-          run: python3 -m ruff format ./custom_components/audiobookshelf --check
+          run: python3 -m ruff format . --check
