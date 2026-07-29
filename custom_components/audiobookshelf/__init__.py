@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
+from homeassistant.const import CONF_API_KEY, CONF_URL
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
@@ -13,7 +13,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
-from .const import DOMAIN, PLATFORMS
+from .const import DOMAIN, PLATFORMS, scan_interval_for
 from .services import async_setup_services
 
 type AudiobookshelfConfigEntry = ConfigEntry[AudiobookShelfDataUpdateCoordinator]
@@ -92,7 +92,7 @@ async def async_setup_entry(
     coordinator = AudiobookShelfDataUpdateCoordinator(
         hass,
         config_entry=entry,
-        scan_interval=int(entry.data[CONF_SCAN_INTERVAL]),
+        scan_interval=scan_interval_for(entry),
         api_url=entry.data[CONF_URL],
         token=entry.data[CONF_API_KEY],
     )
@@ -104,8 +104,19 @@ async def async_setup_entry(
 
     entry.runtime_data = coordinator
 
+    # The options flow only writes the entry; without this a changed scan
+    # interval would not take effect until Home Assistant restarted.
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+async def async_reload_entry(
+    hass: HomeAssistant, entry: AudiobookshelfConfigEntry
+) -> None:
+    """Reload the entry when its configuration changes."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(

@@ -15,6 +15,14 @@
                 "data": {
                     "api_key": "API Key"
                 }
+            },
+            "reconfigure": {
+                "title": "Reconfigure Audiobookshelf",
+                "description": "Point the integration at a different address, or replace the API key. Your sensors and their history are kept.",
+                "data": {
+                    "url": "API URL (starting with http:// or https://)",
+                    "api_key": "API Key"
+                }
             }
         },
         "error": {
@@ -28,7 +36,18 @@
         },
         "abort": {
             "already_configured": "Device is already configured",
-            "reauth_successful": "Re-authentication was successful"
+            "reauth_successful": "Re-authentication was successful",
+            "reconfigure_successful": "Reconfiguration was successful"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Audiobookshelf options",
+                "data": {
+                    "scan_interval": "Update interval in seconds (minimum 30, defaults to 300s/5min)"
+                }
+            }
         }
     },
     "entity": {

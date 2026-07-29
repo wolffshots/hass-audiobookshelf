@@ -12,17 +12,26 @@ from aioaudiobookshelf.exceptions import AbsAuthError, AbsError, BadUserError
 from aiohttp import ClientError
 from homeassistant import config_entries
 from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from homeassistant.config_entries import ConfigFlowResult
+    from homeassistant.config_entries import ConfigEntry, ConfigFlowResult
     from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, REQUEST_TIMEOUT
+from .const import (
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    MIN_SCAN_INTERVAL,
+    REQUEST_TIMEOUT,
+    scan_interval_for,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+SCAN_INTERVAL_SELECTOR = vol.All(cv.positive_int, vol.Range(min=MIN_SCAN_INTERVAL))
 
 
 def validate_config(data: dict[str, Any]) -> dict:
@@ -101,8 +110,10 @@ class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             ): str,
                             vol.Optional(
                                 CONF_SCAN_INTERVAL,
-                                default=user_input.get(CONF_SCAN_INTERVAL, 300),
-                            ): cv.positive_int,
+                                default=user_input.get(
+                                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                                ),
+                            ): SCAN_INTERVAL_SELECTOR,
                         }
                     ),
                     errors=errors,
@@ -113,7 +124,9 @@ class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data={
                     CONF_URL: user_input[CONF_URL],
                     CONF_API_KEY: user_input[CONF_API_KEY],
-                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, 300),
+                    CONF_SCAN_INTERVAL: user_input.get(
+                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                    ),
                 },
             )
 
@@ -124,7 +137,49 @@ class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_URL): str,
                     vol.Required(CONF_API_KEY): str,
-                    vol.Optional(CONF_SCAN_INTERVAL, default=300): cv.positive_int,
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+                    ): SCAN_INTERVAL_SELECTOR,
+                }
+            ),
+            errors=errors,
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: ConfigEntry,  # noqa: ARG004
+    ) -> AudiobookshelfOptionsFlow:
+        """Return the options flow handler."""
+        return AudiobookshelfOptionsFlow()
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, str] | None = None
+    ) -> ConfigFlowResult:
+        """Change the URL or API key without removing and re-adding the entry."""
+        reconfigure_entry = self._get_reconfigure_entry()
+        errors: dict = {}
+
+        if user_input is not None:
+            candidate = {**reconfigure_entry.data, **user_input}
+            errors.update(validate_config(candidate))
+            if not errors:
+                errors.update(await verify_config(self.hass, candidate))
+            if not errors:
+                return self.async_update_reload_and_abort(
+                    reconfigure_entry, data_updates=user_input
+                )
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_URL, default=reconfigure_entry.data[CONF_URL]
+                    ): str,
+                    # Deliberately not pre-filled - the stored key is a
+                    # credential and there is nowhere sensible to show it.
+                    vol.Required(CONF_API_KEY): str,
                 }
             ),
             errors=errors,
@@ -159,4 +214,27 @@ class AudiobookshelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="reauth_confirm",
             data_schema=vol.Schema({vol.Required(CONF_API_KEY): str}),
             errors=errors,
+        )
+
+
+class AudiobookshelfOptionsFlow(config_entries.OptionsFlow):
+    """Let the poll interval be changed without re-adding the integration."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle the options."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_SCAN_INTERVAL,
+                        default=scan_interval_for(self.config_entry),
+                    ): SCAN_INTERVAL_SELECTOR,
+                }
+            ),
         )

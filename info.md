@@ -8,21 +8,40 @@
 
 ## This component will set up the following general sensors:
 
-| Entity            |       Type       | Description                                            |
-| ---------------   | ---------------- | ------------------------------------                   |
-| `open_sessions`   | `sensor`         | Show number of open audio sessions                     |
-| `recent_sessions` | `sensor`         | Show number of open audio sessions updated recently    |
-| `libraries`       | `sensor`         | Number of libraries on the server                      |
-| `users`           | `sensor`         | Number of users on the server                          |
-| `online_users`    | `sensor`         | Number of online users on the server                   |
-| `auth_sessions`   | `sensor`         | Number of active authentication sessions for the configured user (requires Audiobookshelf v2.36.0+) |
+| Entity                                  |  Type    | Description                                            |
+| --------------------------------------- | -------- | ------------------------------------                   |
+| `sensor.audiobookshelf_open_sessions`   | `sensor` | Number of open audio sessions                          |
+| `sensor.audiobookshelf_recent_sessions` | `sensor` | Number of open audio sessions updated in the last two minutes |
+| `sensor.audiobookshelf_libraries`       | `sensor` | Number of libraries on the server                      |
+| `sensor.audiobookshelf_users`           | `sensor` | Number of users on the server                          |
+| `sensor.audiobookshelf_users_online`    | `sensor` | Number of online users on the server                   |
+| `sensor.audiobookshelf_auth_sessions`   | `sensor` | Number of active authentication sessions for the configured user (requires Audiobookshelf v2.36.0+, otherwise `unknown`) |
 
 ## It also adds the following library specific sensors (for each library that it finds during setup):
-| Entity             | Type           | Description                                              |
-| ------------------ | -------------- | -------------------------------------------------------- |
-| `items`            | `sensor`       | Number of items in the library                           |
-| `duration`         | `sensor`       | Total time in hours of playable content in library       |
-| `size`             | `sensor`       | Total disk space used by library in GB                   |
+| Entity                                       | Type     | Description                                        |
+| -------------------------------------------- | -------- | -------------------------------------------------- |
+| `sensor.audiobookshelf_<library>_items`      | `sensor` | Number of items in the library                     |
+| `sensor.audiobookshelf_<library>_duration`   | `sensor` | Total playable content in the library, shown in hours by default |
+| `sensor.audiobookshelf_<library>_size`       | `sensor` | Total disk space used by the library, shown in GB by default |
+
+A library created on the server gets its sensors automatically, at the next update. A library removed from the server leaves its sensors behind as `unavailable`; delete them from the entity registry if you want them gone.
+
+## Actions
+
+### `audiobookshelf.remove_my_progress`
+
+Removes listening progress from every book whose series name matches the text you give it. **This cannot be undone.**
+
+| Field         | Required | Description                                                                              |
+| ------------- | -------- | ---------------------------------------------------------------------------------------- |
+| `series_name` | yes      | Matched as a substring against each book's series name, ignoring case. Cannot be blank.  |
+
+Two things are worth knowing before using it:
+
+- It removes progress for **the account the API key belongs to**, not for the Home Assistant user calling the action. The name is misleading in that respect.
+- The match is a substring, so `Dune` also matches `Dune Chronicles`. Give as much of the series name as you can.
+
+It walks every item in every library, so it can take a while on a large server. Podcast libraries are unaffected.
 
 ## Examples
 
@@ -70,6 +89,16 @@ Use that key as the `API key` when setting up the integration.
 For more info on what the key can be used for see: https://api.audiobookshelf.org/#introduction
 
 ### Setting up via the UI
+
+| Variable        | Description                                                                                               |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| `URL`           | The URL and port of your Audiobookshelf instance (must start with the protocol, http:// or https://)      |
+| `API key`       | The API key that you got in the previous step                                                             |
+| `Scan interval` | How regularly the data should be fetched from your Audiobookshelf instance (in seconds), defaults to 300s |
+
+Only one Audiobookshelf server can be configured at a time.
+
+To change the address or replace the API key later, use **Reconfigure** on the integration rather than removing and re-adding it - that keeps your sensors and their history. The update interval is under **Configure**, and takes effect without a restart.
 
 ## Credits
 
