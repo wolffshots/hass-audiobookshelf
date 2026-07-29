@@ -31,6 +31,37 @@
             "reauth_successful": "Re-authentication was successful"
         }
     },
+    "entity": {
+        "sensor": {
+            "count_users": {
+                "name": "Users"
+            },
+            "count_users_online": {
+                "name": "Users online"
+            },
+            "count_open_sessions": {
+                "name": "Open sessions"
+            },
+            "count_recent_sessions": {
+                "name": "Recent sessions"
+            },
+            "count_auth_sessions": {
+                "name": "Auth sessions"
+            },
+            "count_libraries": {
+                "name": "Libraries"
+            },
+            "library_size": {
+                "name": "{library} size"
+            },
+            "library_items": {
+                "name": "{library} items"
+            },
+            "library_duration": {
+                "name": "{library} duration"
+            }
+        }
+    },
     "services": {
         "remove_my_progress": {
             "name": "Remove My Progress",

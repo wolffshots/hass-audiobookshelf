@@ -6,8 +6,10 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL, CONF_URL
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .audiobook_shelf_data_update_coordinator import AudiobookShelfDataUpdateCoordinator
@@ -30,6 +32,46 @@ def clean_config(data: Mapping[str, Any]) -> dict[str, Any]:
         key: "<redacted>" if key == CONF_API_KEY else value
         for key, value in data.items()
     }
+
+
+@callback
+def _migrate_url_identifiers(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Re-key entities and the device from the API URL onto the entry id."""
+    # v1 built both from the URL, which the user can edit, so moving the
+    # server orphaned every entity and created a second device. Rewriting
+    # them here preserves history, dashboards and any area assignment.
+    old_prefix = f"{entry.data[CONF_URL]}_"
+
+    entity_registry = er.async_get(hass)
+    for registry_entry in er.async_entries_for_config_entry(
+        entity_registry, entry.entry_id
+    ):
+        if not registry_entry.unique_id.startswith(old_prefix):
+            continue
+        suffix = registry_entry.unique_id.removeprefix(old_prefix)
+        entity_registry.async_update_entity(
+            registry_entry.entity_id,
+            new_unique_id=f"{entry.entry_id}_{suffix}",
+        )
+
+    device_registry = dr.async_get(hass)
+    device = device_registry.async_get_device(
+        identifiers={(DOMAIN, entry.data[CONF_URL])}
+    )
+    if device is not None:
+        device_registry.async_update_device(
+            device.id, new_identifiers={(DOMAIN, entry.entry_id)}
+        )
+
+
+async def async_migrate_entry(
+    hass: HomeAssistant, entry: AudiobookshelfConfigEntry
+) -> bool:
+    """Migrate an old config entry."""
+    if entry.version == 1:
+        _migrate_url_identifiers(hass, entry)
+        hass.config_entries.async_update_entry(entry, version=2)
+    return True
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa: ARG001
